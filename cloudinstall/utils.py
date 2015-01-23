@@ -466,6 +466,28 @@ def find(file_pattern, top_dir, max_depth=None, path_pattern=None):
             yield os.path.join(path, name)
 
 
+def get_container_names(prefix=""):
+    "returns a sorted list of container names starting with prefix"
+    names = check_output("lxc-ls -1", shell=True)
+    names = names.decode().split()
+    return sorted([n for n in names if n.startswith(prefix)])
+
+
+def get_unique_container_name(prefix="openstack-single"):
+    names = get_container_names(prefix)
+    if len(names) == 0:
+        return prefix
+    cs = names[-1].split("-")
+    if cs[-1].isdigit():
+        base = cs[:-1]
+        n = int(cs[-1]) + 1
+    else:
+        base = cs
+        n = 1
+    newname = '-'.join(base + [str(n)])
+    return newname
+
+
 class NoContainerIPException(Exception):
 
     "Container has no IP"

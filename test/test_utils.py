@@ -24,7 +24,9 @@ import unittest
 from unittest.mock import patch, PropertyMock
 import yaml
 
-from cloudinstall.utils import render_charm_config
+from cloudinstall.utils import (render_charm_config,
+                                get_unique_container_name,
+                                get_container_names)
 from cloudinstall.config import Config
 from tempfile import NamedTemporaryFile
 
@@ -99,3 +101,28 @@ class TestRenderCharmConfig(unittest.TestCase):
 
     def test_render_worker_multiplier_single(self, mockspew):
         self._do_test_multiplier(True, mockspew, expected=1)
+
+
+class TestContainerNaming(unittest.TestCase):
+
+    def test_get_container_names(self):
+        with patch('cloudinstall.utils.check_output') as mock_check_output:
+            mock_check_output.return_value = b"con-B\ncon-A\ncon-Z"
+            names = get_container_names()
+            self.assertEqual(names, ['con-A', 'con-B', "con-Z"])
+            no_names = get_container_names("nonexistent")
+            self.assertEqual(no_names, [])
+
+    def test_get_unique_container_name(self):
+        with patch('cloudinstall.utils.get_container_names') as mock_gcns:
+            mock_gcns.return_value = []
+            n = get_unique_container_name()
+            self.assertEqual(n, 'openstack-single')
+
+            mock_gcns.return_value = ['openstack-single']
+            n = get_unique_container_name()
+            self.assertEqual(n, 'openstack-single-1')
+
+            mock_gcns.return_value = ['bar', 'foo', 'foo-1']
+            n = get_unique_container_name('foo')
+            self.assertEqual(n, 'foo-2')
