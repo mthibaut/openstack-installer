@@ -72,7 +72,7 @@ class Config:
          'white', 'dark gray')
     ]
 
-    def __init__(self, cfg_obj=None, cfg_file=None):
+    def __init__(self, cfg_obj=None, cfg_file=None, install_name='openstack'):
         if os.getenv("FAKE_API_DATA"):
             self._juju_env = {"bootstrap-config": {'name': "fake",
                                                    'maas-server': "FAKE"}}
@@ -84,6 +84,7 @@ class Config:
         else:
             self._config = cfg_obj
         self._cfg_file = cfg_file
+        self.install_name = install_name
 
     def save(self):
         """ Saves configuration """
@@ -118,7 +119,8 @@ class Config:
     @property
     def cfg_path(self):
         """ top level configuration path """
-        return os.path.join(utils.install_home(), '.cloud-install')
+        return os.path.join(utils.install_home(), '.cloud-install',
+                            self.install_name)
 
     @property
     def cfg_file(self):
@@ -162,6 +164,9 @@ class Config:
         if key in self._config:
             return self._config[key]
         else:
+            if hasattr(self, key):
+                attr = getattr(self, key)
+                return attr() if callable(attr) else attr
             log.error("Could not find {} in config".format(key))
             return False
 
@@ -172,8 +177,9 @@ class Config:
     def juju_home(self, use_expansion=False):
         """ A string representing JUJU_HOME """
         if use_expansion:
-            cfg_base = os.path.basename(self.cfg_path)
-            home_path = "~/{0}/juju".format(cfg_base)
+            home_path = os.path.expanduser("~")
+            rel_base = os.path.relpath(self.cfg_path, home_path)
+            home_path = "~/{0}/juju".format(rel_base)
         else:
             home_path = self.juju_path()
         return "JUJU_HOME={}".format(home_path)
@@ -229,15 +235,3 @@ class Config:
     @property
     def juju_api_password(self):
         return self.juju_env['password']
-
-    def __getattr__(self, attr):
-        """ Protect us from invalid attribute lookup
-
-        TODO: Re-evaluate once config class is fully migrated
-        to getopt/setopt config scheme.
-        """
-        try:
-            getattr(Config, attr)
-        except AttributeError:
-            log.error("Unknown attribute: {}".format(attr))
-            return False

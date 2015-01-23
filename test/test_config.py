@@ -17,6 +17,7 @@
 
 import logging
 import unittest
+from unittest.mock import patch
 import yaml
 import os.path as path
 from tempfile import NamedTemporaryFile
@@ -73,19 +74,19 @@ class TestGoodConfig(unittest.TestCase):
         self.assertTrue('multi' in self.conf.getopt('install_type'))
 
     def test_cfg_path(self):
-        """ Validate current users config path """
-        self.assertTrue(
-            self.conf.cfg_path == path.join(USER_DIR, '.cloud-install'))
+        """ Validate current user's config path """
+        self.assertEqual(self.conf.cfg_path,
+                         path.join(USER_DIR, '.cloud-install', 'openstack'))
 
     def test_bin_path(self):
         """ Validate additional tools bin path """
-        self.assertTrue(self.conf.bin_path == '/usr/share/openstack/bin')
+        self.assertEqual(self.conf.bin_path, '/usr/share/openstack/bin')
 
     def test_juju_environments_path(self):
         """ Validate juju environments path in user dir """
-        self.assertTrue(
-            self.conf.juju_environments_path == path.join(
-                USER_DIR, '.cloud-install/juju/environments.yaml'))
+        self.assertEqual(self.conf.juju_environments_path,
+                         path.join(USER_DIR, '.cloud-install', 'openstack',
+                                   'juju', 'environments.yaml'))
 
 
 @unittest.skip
@@ -108,3 +109,24 @@ class TestBadConfig(unittest.TestCase):
     def test_no_installer_type(self):
         """ No installer type defined """
         self.assertFalse(self.conf.is_single)
+
+
+class TestConfigFuncs(unittest.TestCase):
+
+    def test_juju_home(self):
+        # mocking install_home instead of Config.cfg_path because it's easier
+        with patch('cloudinstall.utils.install_home') as mock_ih:
+            with patch('cloudinstall.config.os.path.expanduser') as mock_eu:
+                mock_eu.return_value = '/home/user'
+                mock_ih.return_value = '/home/user/'
+
+                c = Config(install_name='test')
+                # sanity check of cfg_path:
+                self.assertEqual(c.cfg_path, '/home/user/.cloud-install/test')
+
+                self.assertEqual(c.juju_home(),
+                                 'JUJU_HOME=/home/user/' +
+                                 '.cloud-install/test/juju')
+
+                self.assertEqual(c.juju_home(use_expansion=True),
+                                 'JUJU_HOME=~/.cloud-install/test/juju')

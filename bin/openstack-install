@@ -59,6 +59,14 @@ def parse_options(argv):
                         'of packages.')
     parser.add_argument('-c', '--config', type=str, dest='config_file',
                         help="Custom configuration for OpenStack installer.")
+    parser.add_argument('-g', '--get-config', type=str, dest='get_config',
+                        default=None,
+                        help="with arg <key>, prints config value for 'key' "
+                        "to stdout and exits.")
+    parser.add_argument('-n', '--name', type=str, dest='install_name',
+                        default='openstack',
+                        help="Custom name for installation. "
+                        "Can be used to separate multiple concurrent installs.")
     parser.add_argument('-k', '--killcloud', action='store_true',
                         dest='killcloud', default=False,
                         help='Tear down existing cloud leaving userdata '
@@ -112,12 +120,18 @@ def populate_config(opts):
         _cfg = {}
     # Update cfg dict with command line opts
     _cfg.update(vars(opts))
-    return Config(cfg_obj=_cfg)
+    return Config(cfg_obj=_cfg, install_name=opts.install_name)
 
 
 if __name__ == '__main__':
     opts = parse_options(sys.argv[1:])
     cfg = populate_config(opts)
+
+    if opts.get_config:
+        val = cfg.getopt(opts.get_config)
+        if val:
+            sys.stdout.write(val)
+        sys.exit(0)
 
     try:
         setup_logger(headless=cfg.getopt('headless'))
