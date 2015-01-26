@@ -45,7 +45,7 @@ class TestCharmBase(unittest.TestCase):
 
         self.get_config_patcher = patch('cloudinstall.charms.get_charm_config')
         self.mock_get_config = self.get_config_patcher.start()
-        self.mock_get_config.return_value = ({}, None)
+        self.mock_get_config.return_value = ({}, None, 'fake-filename')
 
         self.charm = CharmBase(juju=self.mock_jujuclient,
                                juju_state=self.mock_juju_state,

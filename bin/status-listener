@@ -18,12 +18,15 @@
 import kombu
 import logging
 import os
-from subprocess import Popen, PIPE
+from subprocess import check_output, Popen, PIPE
 import time
 import yaml
 
 
-CLOUD_INSTALL_DIR = os.path.expanduser("~/.cloud-install/")
+CLOUD_INSTALL_BASE = os.path.expanduser("~/.cloud-install/")
+install_name = check_output('openstack-install -g install_name',
+                            shell=True)
+CLOUD_INSTALL_DIR = os.path.join(CLOUD_INSTALL_BASE, installname)
 LOG_FILE_NAME = os.path.join(CLOUD_INSTALL_DIR, "status-listener.log")
 STATUS_FILE_NAME = os.path.join(CLOUD_INSTALL_DIR, "sync-status")
 

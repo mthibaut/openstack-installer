@@ -68,7 +68,7 @@ class Controller:
         self.maas = None
         self.maas_state = None
         self.nodes = None
-        self.charm_modules = utils.load_charms()
+        self.charm_modules = utils.load_charms(self.config)
         self.juju_m_idmap = None  # for single, {instance_id: machine id}
         self.deployed_charm_classes = []
         self.placement_controller = None
@@ -107,7 +107,8 @@ class Controller:
                                    key=attrgetter('service_name'))
         deployed_service_names = [s.service_name for s in deployed_services]
 
-        charm_classes = sorted([m.__charm_class__ for m in utils.load_charms()
+        charm_classes = sorted([m.__charm_class__ for m in
+                                utils.load_charms(self.config)
                                 if m.__charm_class__.charm_name in
                                 deployed_service_names],
                                key=attrgetter('charm_name'))

@@ -165,7 +165,7 @@ class PlacementController:
         return ms
 
     def charm_classes(self):
-        cl = [m.__charm_class__ for m in load_charms()
+        cl = [m.__charm_class__ for m in load_charms(self.config)
               if not m.__charm_class__.disabled]
 
         return cl
@@ -277,7 +277,7 @@ class PlacementController:
         if cc.name() in unrequired_services:
             return False
 
-        n_required = cc.required_num_units()
+        n_required = cc.required_num_units(self.config)
         # sanity check:
         if n_required > 1 and not cc.allow_multi_units:
             log.error("Inconsistent charm definition for {}:"
@@ -363,7 +363,7 @@ class PlacementController:
                 controller_charms.append(charm_class)
 
         for charm_class in isolated_charms:
-            for n in range(charm_class.required_num_units()):
+            for n in range(charm_class.required_num_units(self.config)):
                 m = satisfying_machine(charm_class.constraints)
                 if m:
                     l = assignments[m.instance_id][AssignmentType.BareMetal]
@@ -410,7 +410,7 @@ class PlacementController:
 
         for charm_class in self.charm_classes():
             if charm_class.isolate:
-                for n in range(charm_class.required_num_units()):
+                for n in range(charm_class.required_num_units(self.config)):
                     pm = placeholder_for_charm(charm_class)
                     self._machines.append(pm)
                     ad = assignments[pm.instance_id]

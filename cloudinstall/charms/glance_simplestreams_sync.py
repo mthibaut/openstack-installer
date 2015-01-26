@@ -22,15 +22,13 @@ import shutil
 import subprocess
 
 from cloudinstall.charms import (CharmBase, DisplayPriorities,
-                                 get_charm_config,
-                                 CHARM_CONFIG_FILENAME)
+                                 get_charm_config)
 
 CHARM_STABLE_URL = ("https://api.github.com/repos/Ubuntu-Solutions-Engineering"
                     "/glance-simplestreams-sync-charm/tarball/stable")
 
 # Not necessarily required to match because we're local, but easy enough to get
 CURRENT_DISTRO = platform.linux_distribution()[-1]
-CHARMS_DIR = os.path.expanduser("~/.cloud-install/local-charms")
 
 log = logging.getLogger(__name__)
 
@@ -47,24 +45,28 @@ class CharmGlanceSimplestreamsSync(CharmBase):
     related = ['keystone']
 
     def download_stable(self):
-        if not os.path.exists(CHARMS_DIR):
-            os.makedirs(CHARMS_DIR)
+        self.local_charms_dir = os.path.join(self.config.cfg_path,
+                                             "local-charms")
+
+        if not os.path.exists(self.local_charms_dir):
+            os.makedirs(self.local_charms_dir)
 
         r = requests.get(CHARM_STABLE_URL, verify=True)
-        tarball_name = os.path.join(CHARMS_DIR, 'stable.tar.gz')
+        tarball_name = os.path.join(self.local_charms_dir, 'stable.tar.gz')
         with open(tarball_name, mode='wb') as tarball:
             tarball.write(r.content)
 
         try:
-            subprocess.check_output(['tar', '-C', CHARMS_DIR, '-zxf',
-                                     tarball_name], stderr=subprocess.STDOUT)
+            subprocess.check_output(['tar', '-C', self.local_charms_dir,
+                                     '-zxf', tarball_name],
+                                    stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as e:
             log.warning("error untarring: rc={} out={}".format(e.returncode,
                                                                e.output))
             raise e
 
         # filename includes commit hash at end:
-        srcpat = os.path.join(CHARMS_DIR,
+        srcpat = os.path.join(self.local_charms_dir,
                               'Ubuntu-Solutions-Engineering-'
                               'glance-simplestreams-sync-charm-*')
         srcs = glob.glob(srcpat)
@@ -74,7 +76,7 @@ class CharmGlanceSimplestreamsSync(CharmBase):
             raise Exception("Could not find downloaded stable charm.")
 
         src = srcs[0]
-        dest = os.path.join(CHARMS_DIR, CURRENT_DISTRO,
+        dest = os.path.join(self.local_charms_dir, CURRENT_DISTRO,
                             'glance-simplestreams-sync')
         if os.path.exists(dest):
             shutil.rmtree(dest)
@@ -86,14 +88,14 @@ class CharmGlanceSimplestreamsSync(CharmBase):
         log.debug("downloading stable branch from github")
         try:
             self.download_stable()
-            log.debug("done: downloaded to " + CHARMS_DIR)
+            log.debug("done: downloaded to " + self.local_charms_dir)
         except:
             log.exception("problem downloading stable branch."
                           " Falling back to charm store version.")
             return super().deploy(mspec)
 
         kwds = dict(constraints=self.constraints_arg(),
-                    repodir=CHARMS_DIR,
+                    repodir=self.local_charms_dir,
                     distro=CURRENT_DISTRO,
                     mspec=mspec)
 
@@ -104,9 +106,9 @@ class CharmGlanceSimplestreamsSync(CharmBase):
                    juju_home=self.config.juju_home(use_expansion=True),
                    **kwds)
 
-        charm_config, _ = get_charm_config()
+        charm_config, _, charm_config_filename = get_charm_config(self.config)
         if self.charm_name in charm_config:
-            cmd += ' --config ' + CHARM_CONFIG_FILENAME
+            cmd += ' --config ' + charm_config_filename
 
         try:
             log.debug("Deploying {} from local: {}".format(self.charm_name,
@@ -123,7 +125,8 @@ class CharmGlanceSimplestreamsSync(CharmBase):
         return False
 
     def set_relations(self):
-        if os.path.exists(os.path.join(CHARMS_DIR, CURRENT_DISTRO,
+        if os.path.exists(os.path.join(self.local_charms_dir,
+                                       CURRENT_DISTRO,
                                        'glance-simplestreams-sync')):
             if 'rabbitmq-server' not in self.related:
                 self.related.append('rabbitmq-server')

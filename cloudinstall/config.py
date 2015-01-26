@@ -84,7 +84,13 @@ class Config:
         else:
             self._config = cfg_obj
         self._cfg_file = cfg_file
-        self.install_name = install_name
+        env_install_name = os.getenv("INSTALL_NAME")
+        if env_install_name:
+            log.info("using INSTALL_NAME={} from "
+                     "environment.".format(env_install_name))
+            self.install_name = env_install_name
+        else:
+            self.install_name = install_name
 
     def save(self):
         """ Saves configuration """

@@ -81,7 +81,9 @@ def cleanup(cfg):
     # Save latest config object
     log.info("Cleanup, saving latest config object.")
     cfg.save()
-    pid = os.path.join(install_home(), '.cloud-install/openstack.pid')
+    pid = os.path.join(install_home(), '.cloud-install',
+                       cfg.install_name,
+                       'openstack.pid')
     if os.path.isfile(pid):
         os.remove(pid)
     if not cfg.getopt('headless'):
@@ -91,17 +93,18 @@ def cleanup(cfg):
     return
 
 
-def write_status_file(status='', msg=''):
+def write_status_file(config, status='', msg=''):
     """ Writes out a status file
 
     :param str status: success or fail
     :param str msg: any error/success output
     """
-    status_file = os.path.join(install_home(), '.cloud-install/finished.json')
+    status_file = os.path.join(install_home(), '.cloud-install',
+                               config.install_name, 'finished.json')
     spew(status_file, json.dumps(dict(status=status, msg=msg)))
 
 
-def load_charms():
+def load_charms(config):
     """ Load known charm modules
     """
     import cloudinstall.charms
@@ -110,11 +113,8 @@ def load_charms():
                      for (_, mname, _) in
                      pkgutil.iter_modules(cloudinstall.charms.__path__)]
 
-    release_path = os.path.join(install_home(),
-                                '.cloud-install/openstack_release')
-    if os.path.exists(release_path):
-        openstack_release = slurp(release_path)
-    else:
+    openstack_release = config.getopt('openstack_release')
+    if not openstack_release:
         openstack_release = cloudinstall.charms.CharmBase.openstack_release_min
 
     charm_modules = [m for m in charm_modules if

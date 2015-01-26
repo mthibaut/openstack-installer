@@ -74,7 +74,8 @@ Juju GUI.
             """
 
 The juju commands used to deploy the services listed are logged in
-~/.cloud-install/commands.log
+~/.cloud-install/<install_name>/commands.log (<install_name> is 'openstack'
+by default)
 
 * In a multi-install, MAAS may be unable to find machines that match
 the default constraints set for one of the services the installer

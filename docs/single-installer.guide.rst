@@ -144,7 +144,7 @@ See :doc:`Using Juju in OpenStack Guide <using-juju-in-openstack.guide>`
 Troubleshooting
 ^^^^^^^^^^^^^^^
 
-The installer keeps its own logs in **$HOME/.cloud-install/commands.log**.
+The installer keeps its own logs in **$HOME/.cloud-install/<install_name>/commands.log**. "install_name" can be set using the '-n' switch to openstack-install. The default value is 'openstack'.
 
 Killing the current OpenStack deployment
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -172,13 +172,13 @@ Advanced Usage
 ^^^^^^^^^^^^^^
 
 It is possible to stop and start the container housing OpenStack.
-To do so run the following from the container host:
+To do so run the following from the container host, assuming that you're using the default install_name of 'openstack'.
 
 .. code::
 
-   $ sudo lxc-stop -n uoi-bootstrap
-   $ sudo lxc-start -n uoi-bootstrap -d
-   $ ssh ubuntu@ip-of-uoi-bootstrap-container
+   $ sudo lxc-stop -n openstack
+   $ sudo lxc-start -n openstack -d
+   $ ssh ubuntu@ip-of-openstack-container
    (uoi-bootstrap) $ JUJU_HOME=~/.cloud-install/juju juju status
 
 From this point on it is a matter of waiting for all services to be restarted

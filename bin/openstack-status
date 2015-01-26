@@ -107,14 +107,14 @@ if __name__ == '__main__':
 
     if os.path.isfile(config.pidfile):
         print("Another instance of openstack-status is running. If you're "
-              "sure there are no other instances, please remove "
-              "~/.cloud-install/openstack.pid")
+              "sure there are no other instances, please remove " +
+              os.path.join(config.cfg_path, "openstack.pid"))
         sys.exit(1)
 
     # Run openstack-status within container on single installs
     out = utils.get_command_output('hostname', user_sudo=True)
     hostname = out['output'].rstrip()
-    if config.is_single() and 'uoi-bootstrap' not in hostname:
+    if config.is_single() and 'uoi-bootstrap' not in hostname: #TODO hardcoded container name
         logger.info("Running status within container")
         utils.container_run_status('uoi-bootstrap', 'openstack-status', config)
 

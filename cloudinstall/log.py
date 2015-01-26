@@ -36,7 +36,7 @@ class PrettyLog():
         return pprint.pformat(self.obj)
 
 
-def setup_logger(name=__name__, headless=False):
+def setup_logger(name=__name__, headless=False, config=None):
     """setup logging
 
     Overridding the default log level(**debug**) can be done via an
@@ -70,7 +70,11 @@ def setup_logger(name=__name__, headless=False):
     """
     HOME = os.getenv('HOME')
     CONFIG_DIR = '.cloud-install'
-    CONFIG_PATH = os.path.join(HOME, CONFIG_DIR)
+    if config:
+        install_name = config.install_name
+    else:
+        install_name = ""
+    CONFIG_PATH = os.path.join(HOME, CONFIG_DIR, install_name)
     if not os.path.isdir(CONFIG_PATH):
         os.makedirs(CONFIG_PATH)
     LOGFILE = os.path.join(CONFIG_PATH, 'commands.log')

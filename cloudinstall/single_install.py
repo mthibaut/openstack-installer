@@ -36,7 +36,8 @@ class SingleInstall:
         self.config = config
         self.loop = loop
         self.tasker = self.display_controller.tasker(loop, config)
-        self.container_name = utils.get_unique_container_name()
+        self.container_name = utils.get_unique_container_name(
+            config.install_name)
         self.container_path = '/var/lib/lxc'
         self.container_abspath = os.path.join(self.container_path,
                                               self.container_name)
@@ -93,12 +94,14 @@ class SingleInstall:
 
         # Mount points
         with open(os.path.join(self.container_abspath, 'fstab'), 'a+') as f:
+            container_cfg_path = 'home/ubuntu/.cloud-install/{}'.format(
+                self.config.install_name)
             f.write(
                 "{0} {1} none bind,create=dir\n".format(
-                    self.config.cfg_path,
-                    'home/ubuntu/.cloud-install'))
+                    self.config.cfg_path, container_cfg_path))
+
             # TODO: Remove as its not needed since juju
-            # resides in ~/.cloud-install
+            # resides in ~/.cloud-install/install_name
             # f.write(
             #     "{0} {1} none bind,create=dir\n".format(
             #         self.config.juju_path(),
@@ -216,8 +219,8 @@ class SingleInstall:
             log.error("Container cloud-init finished with "
                       "errors: {}".format(errors))
             log.error("Top-level container OS did not initialize "
-                      "correctly. See ~/.cloud-install/commands.log "
-                      "for details.")
+                      "correctly. See ~/.cloud-install/{}/commands.log "
+                      "for details.".format(self.config.install_name))
             self.loop.exit(1)
         return True
 
@@ -226,8 +229,8 @@ class SingleInstall:
         filename = os.path.basename(self.config.getopt('upstream_deb'))
         utils.container_run(
             self.container_name,
-            'sudo dpkg -i /home/ubuntu/.cloud-install/{}'.format(
-                filename))
+            'sudo dpkg -i /home/ubuntu/.cloud-install/{}/{}'.format(
+                self.config.install_name, filename))
 
     def set_perms(self):
         """ sets permissions

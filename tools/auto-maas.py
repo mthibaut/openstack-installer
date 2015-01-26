@@ -6,6 +6,7 @@ import argparse
 import csv
 import json
 import gzip
+import os
 import StringIO
 import urlparse
 import urllib2
@@ -25,7 +26,10 @@ def get_client(url, creds):
     return MAASClient(auth, MAASDispatcher(), url)
 
 def main():
-    with open(expanduser('~/.cloud-install/maas-creds')) as f:
+    install_name = os.getenv('INSTALL_NAME') or 'openstack'
+    creds_path = expanduser('~/.cloud-install/{}'
+                            '/maas-creds'.format(install_name))
+    with open(creds_path) as f:
         client = get_client('http://localhost/MAAS/api/1.0/', f.read().strip())
 
     for mac in ['ec:a8:6b:fc:34:f8', 'ec:a8:6b:fe:15:75', 'ec:a8:6b:fb:34:d6']:

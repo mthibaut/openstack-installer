@@ -262,7 +262,7 @@ class ServiceWidget(WidgetWrap):
 
         if self.controller.service_is_required(self.charm_class):
             np = self.controller.machine_count_for_charm(self.charm_class)
-            nr = self.charm_class.required_num_units()
+            nr = self.charm_class.required_num_units(self.controller.config)
             self.title_markup[1] = ('info',
                                     " ({} of {} placed)".format(np, nr))
             self.charm_info_widget.set_text(self.title_markup)
@@ -497,7 +497,7 @@ class ServicesList(WidgetWrap):
 
             if self.unplaced_only:
                 n_units = self.controller.machine_count_for_charm(cc)
-                if n_units == cc.required_num_units() \
+                if n_units == cc.required_num_units(self.controller.config) \
                    and cc not in self.controller.unplaced_services:
                     self.remove_service_widget(cc)
                     continue

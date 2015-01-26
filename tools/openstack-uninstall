@@ -4,21 +4,28 @@ echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 echo Ubuntu Openstack Installer Uninstalling ...
 echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
+if [ "x$INSTALL_NAME" == "x" ]; then
+    INSTALL_NAME="openstack"
+fi
+
+CONFIG_ROOT=`openstack-install -g cfg_path -n $INSTALL_NAME`
+JUJU_ROOT=`openstack-install -g juju_path -n $INSTALL_NAME`
+
 if [ "$#" -eq 1 ] && [ $1 != '-u' ]; then
   WHAT=$1
 elif [ "$#" -eq 2 ]; then
   WHAT=$2
-elif [ -f ~/.cloud-install/multi ]; then
+elif [ -f $CONFIG_ROOT/multi ]; then
   WHAT=multi-system
-elif [ -f ~/.cloud-install/single ]; then
+elif [ -f $CONFIG_ROOT/single ]; then
   WHAT=single-system
-elif [ -f ~/.cloud-install/landscape ]; then
+elif [ -f $CONFIG_ROOT/landscape ]; then
   WHAT=multi-system
 else
   echo "could not determine install type"
 fi
 
-if [ -f ~/.cloud-install/new-maas ]; then
+if [ -f $CONFIG_ROOT/new-maas ]; then
   MAAS_TYPE=new
 else
   MAAS_TYPE=existing
@@ -34,9 +41,7 @@ case $WHAT in
     echo Multi install cleansing.
     echo @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
 
-    # FIXME: probably need to convert this to a python script to pull
-    # same data from config object
-    JUJU_HOME=~/.cloud-install/juju juju destroy-environment --yes --force maas
+    JUJU_HOME=$JUJU_ROOT juju destroy-environment --yes --force maas
 
     if [ "$MAAS_TYPE" == "new" ]; then
         rm -r ~/.maascli.db
@@ -96,5 +101,5 @@ case $WHAT in
   esac
 
 
-rm -rf ~/.cloud-install || true
-rm -rf /etc/openstack || true
+rm -rf $CONFIG_ROOT || true
+rm -rf /etc/openstack || true #TODO: should only do this after last install is gone

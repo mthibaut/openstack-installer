@@ -67,14 +67,11 @@ pyflakes:
 pep8:
 	pep8 cloudinstall test
 
-$(HOME)/.cloud-install:
-	mkdir -p $(HOME)/.cloud-install
-
 NOSE_ARGS = -v --with-cover --cover-package=cloudinstall --cover-html test --cover-inclusive cloudinstall
-test: $(HOME)/.cloud-install
+test:
 	nosetests3 $(NOSE_ARGS)
 
-travis-test: $(HOME)/.cloud-install
+travis-test:
 	nosetests $(NOSE_ARGS)
 
 status:

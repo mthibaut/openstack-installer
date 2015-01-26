@@ -24,7 +24,9 @@ from cloudinstall.config import Config
 
 cfg = Config()
 SYNC_STATUS_LISTENER_PATH = os.path.join(cfg.bin_path, "status-listener")
-STATUS_FILE_NAME = os.path.expanduser("~/.cloud-install/sync-status")
+STATUS_FILE_NAME = os.path.join(os.path.expanduser("~/.cloud-install/"),
+                                cfg.install_name,
+                                "sync-status")
 
 status_subprocess = None
 not_found_message = ""

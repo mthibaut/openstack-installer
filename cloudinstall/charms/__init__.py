@@ -30,20 +30,21 @@ from cloudinstall.placement.controller import AssignmentType
 
 log = logging.getLogger('cloudinstall.charms')
 
-CHARM_CONFIG_FILENAME = path.expanduser("~/.cloud-install/charmconf.yaml")
 
-
-def get_charm_config():
+def get_charm_config(config):
     """Returns charm config as python dict and raw yaml, if the file exists.
-    Returns {}, None if the file does not exist.
+    also returns filename.
+    Returns {}, None, filename if the file does not exist.
     """
     charm_config = {}
     charm_config_raw = None
-    if path.exists(CHARM_CONFIG_FILENAME):
-        with open(CHARM_CONFIG_FILENAME) as f:
+    charm_config_filename = path.join(config.cfg_path, "charmconf.yaml")
+
+    if path.exists(charm_config_filename):
+        with open(charm_config_filename) as f:
             charm_config_raw = f.read()
             charm_config = yaml.load(charm_config_raw)
-    return charm_config, charm_config_raw
+    return charm_config, charm_config_raw, charm_config_filename
 
 
 def query_cs(charm, series='trusty'):
@@ -77,7 +78,7 @@ def get_charm(charm_name, juju, juju_state, ui, config):
     :rtype: Charm
     :returns: charm class
     """
-    for charm in utils.load_charms():
+    for charm in utils.load_charms(config):
         c = charm.__charm_class__(juju=juju,
                                   juju_state=juju_state,
                                   ui=ui,
@@ -162,7 +163,7 @@ export OS_REGION_NAME=RegionOne
             return False
 
     @classmethod
-    def required_num_units(self):
+    def required_num_units(self, config):
         """Override this in subclasses to force placement of multiple
         units."""
         return 1
@@ -202,7 +203,7 @@ export OS_REGION_NAME=RegionOne
 
         _charm_name_rev = self.charm_name
 
-        charm_config, charm_config_raw = get_charm_config()
+        charm_config, charm_config_raw, _ = get_charm_config(self.config)
         log.debug("charm_config = {} ".format(charm_config))
         if self.charm_name in charm_config:
             config_yaml = charm_config_raw

@@ -346,6 +346,11 @@ class PlacementControllerTestCase(unittest.TestCase):
         """gen_defaults should only use ready machines"""
         mock_maas_state = MagicMock()
         mock_maas_state.machines.return_value = []
-        pc = PlacementController(maas_state=mock_maas_state)
+        mock_config = MagicMock(name='config')
+        mock_config.getopt.return_value = False
+        with patch('cloudinstall.charms.get_charm_config') as m_gcc:
+            m_gcc.return_value = ({}, None, 'fake')
+            pc = PlacementController(maas_state=mock_maas_state,
+                                     config=mock_config)
         pc.gen_defaults()
         mock_maas_state.machines.assert_called_with(MaasMachineStatus.READY)

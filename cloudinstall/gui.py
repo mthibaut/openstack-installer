@@ -767,7 +767,10 @@ class PegasusGUI(WidgetWrap):
         self.machine_wait_view.update()
         self.frame.body = self.machine_wait_view
 
-    def show_exception_message(self, ex, logpath="~/.cloud-install/commands"):
+    def show_exception_message(self, ex, logpath=None):
+        if logpath is None:
+            logpath = "~/.cloud-install/<install_name>/commands.log"
+
         def handle_done(*args, **kwargs):
             raise urwid.ExitMainLoop()
         self.hide_widget_on_top()

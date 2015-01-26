@@ -70,7 +70,7 @@ class EventLoop:
                 if self.config.getopt('current_state') != \
                    ControllerState.SERVICES:
                     return
-                charm_modules = utils.load_charms()
+                charm_modules = utils.load_charms(self.config)
                 charm_classes = [m.__charm_class__ for m in charm_modules
                                  if m.__charm_class__.allow_multi_units and
                                  not m.__charm_class__.disabled]

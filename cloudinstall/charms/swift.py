@@ -37,8 +37,9 @@ class CharmSwift(CharmBase):
     allow_multi_units = True
 
     @classmethod
-    def required_num_units(self):
-        charm_config, _ = get_charm_config()
+    def required_num_units(self, config):
+        print("about to call get_charm_config: {}".format(get_charm_config))
+        charm_config, _, _ = get_charm_config(config)
         if 'swift-proxy' in charm_config:
             num_replicas = charm_config.get('replicas',
                                             self.default_replicas)
