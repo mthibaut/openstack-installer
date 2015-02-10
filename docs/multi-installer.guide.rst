@@ -56,6 +56,10 @@ An example of a system with 2 network interfaces **eth0 (public)** and **eth1 (p
 
 Below sets up the NAT for those interfaces, save to **/etc/network/iptables.rules**:
 
+.. attention::
+
+   Make sure the **bridge-utils** package is installed.
+
 .. code::
 
    *nat
@@ -118,12 +122,26 @@ should be selected during placement.
 
       $ JUJU_HOME=~/.cloud-install/juju juju set quantum-gateway ext-port=<interface>
 
+   Or define the option in a separate **charm-config.yaml** file:
+
+   .. code::
+      quantum-gateway:
+        ext-port: <interface>
+
+   Then before you run the install append this option:
+
+   .. code::
+
+      $ sudo openstack-install --charm-config /path/to/charm-config.yaml
+
+   This will merge in the custom charm options with the rest of the configuration as to not
+   lose any default setup options.
+
 Setting a password
 ^^^^^^^^^^^^^^^^^^
 
 When asked to set the openstack password it should be noted that this password is
-used throughout all openstack related services (ie Horizon login password). The only
-service that does not use this password is **juju-gui**.
+used throughout all openstack related services (ie Horizon login password).
 
 Next Steps
 ^^^^^^^^^^
@@ -151,6 +169,10 @@ to use that machine instead:
 .. note::
 
    **sudo -E** is necessary for the current environment to be preserved.
+
+   A common scenario is to use a virtual machine as the juju bootstrap node as to not
+   waste a bare metal machine in the MAAS cluster. Visit the link on `uvtool <https://help.ubuntu.com/lts/serverguide/cloud-images-and-uvtool.html>`_
+   for more information on creating virtual machines.
 
 Troubleshooting
 ^^^^^^^^^^^^^^^
