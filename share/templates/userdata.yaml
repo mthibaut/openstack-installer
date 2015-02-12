@@ -21,7 +21,7 @@ groups:
   - sudo: [ubuntu]
 apt_sources:
   - source: "ppa:cloud-installer/testing"
-  - source: "ppa:juju/stable"
+#  - source: "ppa:juju/stable"
 {% if extra_ppa %}
 {% for ppa in extra_ppa %}
   - source: "{{ ppa }}"
