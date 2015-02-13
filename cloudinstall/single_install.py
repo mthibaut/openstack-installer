@@ -19,7 +19,7 @@ import os
 import json
 import time
 import shutil
-from cloudinstall import utils
+from cloudinstall import utils, netutils
 
 
 log = logging.getLogger('cloudinstall.single_install')
@@ -69,6 +69,14 @@ class SingleInstall:
             render_parts['extra_ppa'] = self.config.getopt('extra_ppa')
 
         render_parts['seed_command'] = self._proxy_pollinate()
+
+        # Setup proxy
+        http_proxy = self.config.getopt('http_proxy')
+        https_proxy = self.config.getopt('https_proxy')
+        if http_proxy:
+            render_parts['http_proxy'] = http_proxy
+        if https_proxy:
+            render_parts['https_proxy'] = https_proxy
 
         if self.config.getopt('apt_mirror'):
             render_parts['apt_mirror'] = self.config.getopt('apt_mirror')
@@ -142,6 +150,13 @@ class SingleInstall:
                 self.config.cfg_path,
                 'home/ubuntu/.cloud-install'))
             f.write("/var/cache/lxc var/cache/lxc none bind,create=dir\n")
+            extra_mounts = os.getenv("EXTRA_BIND_DIRS", None)
+            if extra_mounts:
+                for d in extra_mounts.split(','):
+                    mountpoint = os.path.basename(d)
+                    f.write("{d} home/ubuntu/{m} "
+                            "none bind,create=dir\n".format(d=d,
+                                                            m=mountpoint))
 
         # update container config
         with open(os.path.join(self.container_abspath, 'config'), 'a') as f:
@@ -241,10 +256,16 @@ class SingleInstall:
     def _install_upstream_deb(self):
         log.info('Found upstream deb, installing that instead')
         filename = os.path.basename(self.config.getopt('upstream_deb'))
-        utils.container_run(
-            self.container_name,
-            'sudo dpkg -i /home/ubuntu/.cloud-install/{}'.format(
-                filename))
+        try:
+            utils.container_run(
+                self.container_name,
+                'sudo dpkg -i /home/ubuntu/.cloud-install/{}'.format(
+                    filename))
+        except:
+            # Make sure deps are installed if any new ones introduced by
+            # the upstream packaging.
+            utils.container_run(
+                self.container_name, 'sudo apt-get install -qyf')
 
     def set_perms(self):
         """ sets permissions
@@ -323,6 +344,16 @@ class SingleInstall:
             log.info("Done installing, stopping here per --install-only.")
             self.config.setopt('install_only', True)
             self.loop.exit(0)
+
+        # Update jujus no-proxy setting if applicable
+        if self.config.getopt('http_proxy') or \
+           self.config.getopt('https_proxy'):
+            log.info("Updating juju environments for proxy support")
+            self.config.update_environments_yaml(
+                key='no-proxy',
+                val='{},localhost,{}'.format(
+                    utils.container_ip(self.container_name),
+                    netutils.get_ip_set('10.0.4.0/24')))
 
         # start the party
         cloud_status_bin = ['openstack-status']
