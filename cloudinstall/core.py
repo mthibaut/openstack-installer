@@ -34,8 +34,8 @@ from cloudinstall.log import PrettyLog
 from cloudinstall.placement.controller import (PlacementController,
                                                AssignmentType)
 
-from macumba import JujuClient
-from macumba import Jobs as JujuJobs
+from cloudinstall.macumba import JujuClient
+from cloudinstall.macumba import Jobs as JujuJobs
 
 
 log = logging.getLogger('cloudinstall.core')

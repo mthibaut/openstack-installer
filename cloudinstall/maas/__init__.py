@@ -18,8 +18,8 @@
 
 from cloudinstall.machine import Machine
 from cloudinstall.utils import human_to_mb
-from maasclient.auth import MaasAuth
-from maasclient import MaasClient
+from cloudinstall.maasclient.auth import MaasAuth
+from cloudinstall.maasclient import MaasClient
 from collections import Counter
 from enum import Enum
 import json
@@ -82,6 +82,7 @@ def satisfies(machine, constraints):
 
 
 class MaasMachineStatus(Enum):
+
     """Symbolic names for maas API status numbers.
 
     -1, UNKNOWN is never returned by maas API. It's used here to
@@ -116,6 +117,7 @@ class MaasMachineStatus(Enum):
 
 
 class MaasMachine(Machine):
+
     """ Single maas machine """
 
     @property
@@ -289,6 +291,7 @@ class MaasMachine(Machine):
 
 
 class MaasState:
+
     """ Represents global MaaS state """
 
     def __init__(self, maas_client):
