@@ -1,34 +1,40 @@
-Ubuntu Openstack Installer
-==================================================
+Ubuntu OpenStack Installer
+==========================
 
-`Github project page <https://github.com/ubuntu-solutions-engineering/cloud-installer>`_
+Installation Guides
+-------------------
 
-Guides
-^^^^^^
+* `Landscape OpenStack Autopilot Guide <http://www.ubuntu.com/download/cloud/install-ubuntu-openstack>`_: Deploy **The Canonical Distribution of Ubuntu OpenStack**.
 
-.. toctree::
-   :maxdepth: 1
+* :doc:`Single Installer Guide <single-installer.guide>` : Deploy a full OpenStack environment within a single LXC container with nested virtual machines.
 
-   developer.setup
-   single-installer.guide
-   multi-installer.guide
-   using-juju-in-openstack.guide
+* :doc:`Multi Installer Guide <multi-installer.guide>` : Use MAAS and a combination of bare metal and virtual machines to deploy an OpenStack cloud.
 
 
-Reference
-^^^^^^^^^^
+Usage
+-----
 
-.. toctree::
-   :maxdepth: 2
+* :doc:`Using Juju in OpenStack Guide <using-juju-in-openstack.guide>` - Learn how to orchestrate services within an OpenStack cloud.
 
-   charms
-   config
-   juju
-   maas
-   ui
-   core
-   gui
-   log
-   machine
-   service
-   utils
+
+Getting Help
+------------
+
+* IRC: server: **irc.freenode.net**, channel: **#ubuntu-solutions**
+
+* Email: `Mailing list <https://lists.ubuntu.com/mailman/listinfo/ubuntu-openstack-installer>`_
+
+* Issue Tracker: `Openstack-installer on Github <https://github.com/Ubuntu-Solutions-Engineering/openstack-installer>`_
+
+
+Testing Deployments
+-------------------
+
+* :doc:`Deployment Test Guide <tester.guide>` - Interested in helping us test the deployment of private clouds with the installer? We'd love that!
+
+
+Developer Details
+-----------------
+
+* :doc:`Developer Guide <developer.setup>` - Interested in contributing to the code? Start here first.
+

@@ -22,9 +22,57 @@ import unittest
 from unittest.mock import MagicMock, PropertyMock
 import json
 
-from cloudinstall.maas import MaasMachine, MaasMachineStatus, MaasState
+from cloudinstall.maas import (MaasMachine, MaasMachineStatus, MaasState,
+                               satisfies)
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), 'maas-output')
+
+
+class SatisfiesTestCase(unittest.TestCase):
+    def setUp(self):
+        m1d = {'cpu_count': 2,
+               'storage': 20,
+               'memory': 2048,
+               'architecture': 'amd64'}
+        self.machine1 = MaasMachine('m1id', m1d)
+        m2d = {'cpu_count': '*',
+               'storage': '*',
+               'memory': '*',
+               'architecture': '*'}
+        self.machine2 = MaasMachine('m2id', m2d)
+
+    def _do_test(self, cons, nfailures, machine=None):
+        if not machine:
+            machine = self.machine1
+        sat, failures = satisfies(machine, cons)
+        self.assertEqual(sat, nfailures == 0)
+        self.assertEqual(len(failures), nfailures)
+
+    def test_satisfies_empty(self):
+        self._do_test(dict(), 0)
+
+    def test_satisfies_some(self):
+        self._do_test(dict(storage=15, arch='amd64'), 0)
+
+    def test_satisfies_nomatch(self):
+        self._do_test(dict(storage=15, arch='ENIAC'), 1)
+
+    def test_satisfies_insufficient(self):
+        self._do_test(dict(storage=100000000), 1)
+
+    def test_satisfies_multifail(self):
+        self._do_test({'cpu_cores': 20, 'arch': 'ENIAC'}, 2)
+
+    def test_handles_units_sufficient(self):
+        self._do_test(dict(mem='2G'), 0)
+
+    def test_handles_units_insufficient(self):
+        self._do_test(dict(mem='64G'), 1)
+
+    def test_asterisk_satisfies_all(self):
+        self._do_test(dict(mem='64G'), 0, machine=self.machine2)
+        self._do_test(dict(storage='64G'), 0, machine=self.machine2)
+        self._do_test(dict(arch='ENIAC'), 0, machine=self.machine2)
 
 
 class MaasMachineTestCase(unittest.TestCase):
@@ -40,14 +88,37 @@ class MaasMachineTestCase(unittest.TestCase):
                                                'bootstrap+1ready.json')))
         self.m_ready = MaasMachine(-1, oneready[1])
 
-    def test_empty_machine_unknonw_status(self):
+    def test_empty_machine_unknown_status(self):
         self.assertEqual(self.empty_machine.status, MaasMachineStatus.UNKNOWN)
 
-    def test_declared_state(self):
-        self.assertEqual(self.m_declared.status, MaasMachineStatus.DECLARED)
+    def test_new_state(self):
+        self.assertEqual(self.m_declared.status, MaasMachineStatus.NEW)
 
     def test_ready_state(self):
         self.assertEqual(self.m_ready.status, MaasMachineStatus.READY)
+
+
+class MaasMachineStatusTestCase(unittest.TestCase):
+    """MaasMachine should use the same labels as MAAS 1.7"""
+
+    def test_statuses(self):
+        labels = ['new', 'commissioning', 'failed_commissioning',
+                  'missing', 'ready', 'reserved', 'deployed',
+                  'retired', 'broken', 'deploying', 'maas_1_7_allocated',
+                  'failed_deployment', 'releasing',
+                  'failed_releasing', 'disk_erasing',
+                  'failed_disk_erasing']
+
+        for i in range(len(labels)):
+            d = dict(status=i)
+            m = MaasMachine('fakeid', d)
+            self.assertEqual(str(m.status), labels[i])
+
+    def test_allocated_folding_works(self):
+        """Maas 1.7 added states but maps several to #6, which was previously
+        'ALLOCATED'. Test that we can correctly map these to ALLOCATED too"""
+
+        self.assertEqual(MaasMachineStatus(6), MaasMachineStatus.ALLOCATED)
 
 
 class MaasStateTestCase(unittest.TestCase):

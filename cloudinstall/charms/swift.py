@@ -14,18 +14,18 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import logging
-from macumba import MacumbaError
-from cloudinstall.charms import (CharmBase, CHARM_CONFIG,
-                                 CHARM_CONFIG_RAW,
+from cloudinstall.charms import (CharmBase, get_charm_config,
                                  DisplayPriorities)
 
 log = logging.getLogger('cloudinstall.charms.compute')
 
 
 class CharmSwift(CharmBase):
+
     """ swift directives """
 
     charm_name = 'swift-storage'
+    charm_rev = 11
     display_name = 'Swift'
     menuable = True
     display_priority = DisplayPriorities.Storage
@@ -33,31 +33,20 @@ class CharmSwift(CharmBase):
     deploy_priority = 5
     default_replicas = 3
     isolate = True
-    optional = True
     allow_multi_units = True
 
-    def setup(self):
-        """Custom setup for swift-storage to get replicas from config"""
-        if 'swift-proxy' in CHARM_CONFIG:
-            num_replicas = CHARM_CONFIG.get('replicas',
+    @classmethod
+    def required_num_units(self):
+        charm_config, _ = get_charm_config()
+        if 'swift-proxy' in charm_config:
+            num_replicas = charm_config.get('replicas',
                                             self.default_replicas)
         else:
             num_replicas = self.default_replicas
-
-        log.debug('Deployed {c}'.format(
-            c=self.charm_name))
-        try:
-            self.juju.deploy(charm=self.charm_name,
-                             service_name=self.charm_name,
-                             num_units=num_replicas,
-                             config_yaml=CHARM_CONFIG_RAW)
-        except MacumbaError:
-            log.exception("Error during deploy")
-            return True
-        return False
+        return num_replicas
 
     def post_proc(self):
         self.juju.set_config('glance-simplestreams-sync',
-                             {'use_swift': True})
+                             {'use_swift': 'True'})
 
 __charm_class__ = CharmSwift

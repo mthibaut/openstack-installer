@@ -17,11 +17,70 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cloudinstall.machine import Machine
+from cloudinstall.utils import human_to_mb
+from maasclient.auth import MaasAuth
+from maasclient import MaasClient
+from collections import Counter
+from enum import Enum
+import json
+import logging
+import os
 import time
-from enum import Enum, unique
 
 
-@unique
+log = logging.getLogger('cloudinstall.maas')
+
+
+def satisfies(machine, constraints):
+    """Evaluates whether a MAAS machine's hardware matches constraints.
+
+    If constraints is None or an empty dict, then any machine will be
+    evaluated as satisfying the constraints.
+
+    .. note::
+
+        That if a machine has '*' as a value, that value satisfies
+        any constraint.
+
+    If successful the return will be (True, [])
+
+    :rtype: tuple
+    :returns: (bool, [list-of-failed constraint keys])
+
+    """
+    kmap = dict(mem='memory',
+                arch='architecture',
+                storage='storage',
+                cpu_cores='cpu_count')
+    kmap['root-disk'] = 'storage'
+
+    cons_checks = []
+
+    if constraints is None:
+        return (True, [])
+
+    for k, v in constraints.items():
+        if k == 'arch':
+            mval = machine.machine[kmap[k]]
+            if mval != '*' and mval != v:
+                cons_checks.append(k)
+        else:
+            mval = machine.machine[kmap[k]]
+
+            if mval == '*':
+                # '*' always satisfies.
+                continue
+
+            if not str(v).isdecimal():
+                v = human_to_mb(v)
+
+            if mval < v:
+                cons_checks.append(k)
+
+    rval = (len(cons_checks) == 0), cons_checks
+    return rval
+
+
 class MaasMachineStatus(Enum):
     """Symbolic names for maas API status numbers.
 
@@ -30,14 +89,30 @@ class MaasMachineStatus(Enum):
     return.
     """
     UNKNOWN = -1
-    DECLARED = 0
+    NEW = 0
     COMMISSIONING = 1
-    FAILED_TESTS = 2
+    FAILED_COMMISSIONING = 2
     MISSING = 3
     READY = 4
     RESERVED = 5
-    ALLOCATED = 6
+    # as of maas 1.7, state #s 6, and 9-15 are mapped
+    # onto 6 by the view that services the nodes/
+    # url. so we will only ever see '6' for any of
+    # these, until sometime in the future.
+    DEPLOYED = 6
     RETIRED = 7
+    BROKEN = 8
+    DEPLOYING = 9  # see DEPLOYED
+    MAAS_1_7_ALLOCATED = 10  # the actual "ALLOCATED" state. see DEPLOYED
+    FAILED_DEPLOYMENT = 11  # see DEPLOYED.
+    RELEASING = 12
+    FAILED_RELEASING = 13
+    DISK_ERASING = 14
+    FAILED_DISK_ERASING = 15
+    ALLOCATED = 6  # for backward compatibility with internal uses
+
+    def __str__(self):
+        return self.name.lower()
 
 
 class MaasMachine(Machine):
@@ -156,13 +231,13 @@ class MaasMachine(Machine):
         return self.machine.get('ip_addresses', [])
 
     @property
-    def mac_address(self):
+    def macaddress_set(self):
         """ Macaddress set of maas machine
 
-        :returns: mac_address and resource_uri
-        :rtype: dict
+        :returns: list of dict(mac_address, resource_uri)
+        :rtype: list
         """
-        return self.machine.get('macaddress_set', {})
+        return self.machine.get('macaddress_set', [])
 
     @property
     def tag_names(self):
@@ -199,6 +274,19 @@ class MaasMachine(Machine):
                                         storage=self.storage,
                                         cpus=self.cpu_cores)
 
+    def __str__(self):
+        return repr(self)
+
+    def filter_label(self):
+        d = dict(dns_name=self.hostname,
+                 arch=self.arch,
+                 tag=self.tag,
+                 mem=self.mem,
+                 storage=self.storage,
+                 cpus=self.cpu_cores)
+        return ("hostname:{dns_name} tag:{tag} mem:{mem} arch:{arch}"
+                "storage:{storage} cores:{cpus}").format(**d)
+
 
 class MaasState:
     """ Represents global MaaS state """
@@ -216,6 +304,10 @@ class MaasState:
             self._maas_client_nodes = self.maas_client.nodes
             self.start_time = time.time()
         return self._maas_client_nodes
+
+    def invalidate_nodes_cache(self):
+        """Force reload on next access"""
+        self._maas_client_nodes = None
 
     def machine(self, instance_id):
         """ Return single machine state
@@ -235,7 +327,7 @@ class MaasState:
         :param state
 
         :returns: machines known to Maas, except for juju bootstrap
-        machine, matching state type, or all if state=None
+            machine, matching state type, or all if state=None
 
         :rtype: list of MaasMachine
 
@@ -247,3 +339,46 @@ class MaasState:
             return [m for m in all_machines if m.status == state]
         else:
             return all_machines
+
+    def machines_summary(self):
+        """ Returns summary of known machines and their states.
+        """
+        log.debug("in summary, self.nodes is {}".format(self.nodes()))
+        return Counter([MaasMachineStatus(m['status'])
+                        for m in self.nodes()])
+
+
+def connect_to_maas(creds=None):
+    if creds:
+        api_host = creds['api_host']
+        api_url = 'http://{}/MAAS/api/1.0'.format(api_host)
+        api_key = creds['api_key']
+        auth = MaasAuth(api_url=api_url,
+                        api_key=api_key)
+    else:
+        auth = MaasAuth()
+        auth.get_api_key('root')
+    maas = MaasClient(auth)
+    maas_state = MaasState(maas)
+    return maas, maas_state
+
+
+class FakeMaasState:
+
+    def machines(self, state=None):
+        fakepath = os.getenv("FAKE_API_DATA")
+        fn = os.path.join(fakepath, "maas-machines.json")
+        with open(fn) as f:
+            try:
+                nodes = json.load(f)
+            except:
+                log.exception("Error loading JSON")
+                return []
+        return [MaasMachine(-1, m) for m in nodes
+                if m['hostname'] != 'juju-bootstrap.maas']
+
+    def invalidate_nodes_cache(self):
+        "no op"
+
+    def machines_summary(self):
+        return "no summary for fake state"

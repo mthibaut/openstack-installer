@@ -15,6 +15,7 @@
 
 import logging
 from cloudinstall.charms import CharmBase, DisplayPriorities
+from cloudinstall.placement.controller import AssignmentType
 
 log = logging.getLogger('cloudinstall.charms.compute')
 
@@ -23,6 +24,7 @@ class CharmNovaCompute(CharmBase):
     """ Openstack Nova Compute directives """
 
     charm_name = 'nova-compute'
+    charm_rev = 11
     display_name = 'Compute'
     menuable = True
     display_priority = DisplayPriorities.Compute
@@ -31,6 +33,8 @@ class CharmNovaCompute(CharmBase):
     constraints = {'mem': 4096,
                    'root-disk': 40960}
     allow_multi_units = True
+    allowed_assignment_types = [AssignmentType.BareMetal,
+                                AssignmentType.KVM]
 
     def set_relations(self):
         if not self.wait_for_agent(['nova-cloud-controller']):
@@ -41,14 +45,17 @@ class CharmNovaCompute(CharmBase):
                 charm, self.display_name))
             try:
                 if "mysql" in charm:
-                    self.juju.add_relation(
+                    rv = self.juju.add_relation(
                         "{0}:shared-db".format(self.charm_name),
                         "{0}:shared-db".format(charm))
+                    log.debug("add_relation (shared-db) "
+                              "returned {}".format(rv))
                 else:
                     self.juju.add_relation(self.charm_name,
                                            charm)
+                    log.debug("add_relation returned {}".format(rv))
             except:
-                log.debug("{0} not ready for relation".format(charm))
+                log.exception("{0} not ready for relation".format(charm))
                 return True
 
         service = self.juju_state.service(self.charm_name)
@@ -61,7 +68,7 @@ class CharmNovaCompute(CharmBase):
                                        c=self.charm_name),
                                        "rabbitmq-server:amqp")
             except:
-                log.debug("Not ready to set amqp relation.")
+                log.exception("Not ready to set amqp relation.")
                 return True
             return False
         return False

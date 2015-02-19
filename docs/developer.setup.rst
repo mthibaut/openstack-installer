@@ -4,6 +4,8 @@ Developer Guide
 The document walks you through installing the necessary packages and
 environment preparations in order to build the cloud installer.
 
+There is also auto-generated :doc:`API Documentation <modules>` available.
+
 Base system
 ^^^^^^^^^^^
 
@@ -27,8 +29,15 @@ installer:
 
 .. code::
 
-   $ git clone https://github.com/Ubuntu-Solutions-Engineering/cloud-installer.git ~/cloud-installer
-   $ cd cloud-installer
+   $ git clone https://github.com/Ubuntu-Solutions-Engineering/openstack-installer.git ~/openstack-installer
+   $ cd ~/openstack-installer
+
+There are a few dependencies for the OpenStack installer which are kept in a PPA. To add it:
+
+.. code::
+
+   $ sudo add-apt-repository -y ppa:cloud-installer/experimental
+   $ sudo apt-get update
 
 Use the target 'install-dependencies' to install a custom binary package for the build dependencies:
 
@@ -44,27 +53,37 @@ From here you can build the entire package set by running:
    $ make sbuild
    # or, if you prefer not to use sbuild:
    $ make deb
+   # or a source only package
+   $ make deb-src
 
 Once finished your packages will be stored in the top level directory
-where your cloud-installer project is kept.
+where your OpenStack project is kept.
 
 .. code::
 
    $ ls ../*.deb
 
-Running the cloud installer
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Running the OpenStack installer
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Running the installer for test currently requires installing the packages.
+Running the installer for testing currently requires installing the packages. (Unit tests can be run without installing the packages, provided the `install-dependencies` make target has been run.)
+
+.. warning::
+   Running the installer as below will install MAAS on your development system.
+   This will create a 'maas' user and add a database to your local postgres instance.
+   It will also configure bind9 DNS and a DHCP server for use with MAAS, although MAAS
+   should not activate those by default. If any of this is not desirable, you will need
+   to find a different machine to develop on.
+
 After building the packages using either 'make deb' or 'make sbuild', you can install and run with the 'run' target:
 
 .. code::
-   
+
    $ sudo make run type=single
-   # or 
+   # or
    $ sudo make run type=multi
 
-You can also set the MAAS_HTTP_PROXY env var for the cloud-install command like this:
+You can also set the MAAS_HTTP_PROXY env var for the openstack-install command like this:
 
 .. code::
 
@@ -76,8 +95,8 @@ If you are running the landscape installer, you will want to use the 'landscape'
 
    $ sudo make landscape proxy=http://myproxy/
 
-Running the Pegasus status screen
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Running the OpenStack status screen
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 If you have run the installer and are working on changes to the status screen (in cloudinstall/), you can re-run the status screen with the correct python path using this target:
 
@@ -96,7 +115,7 @@ If you are testing the status screen's code for deploying charms, you may need t
 Changing the log level
 ^^^^^^^^^^^^^^^^^^^^^^
 
-The cloud-status program logs to ~/.cloud-install/commands.log. The
+The openstack-status program logs to ~/.cloud-install/commands.log. The
 default log level for that log is "DEBUG". Most of the program logs at
 the DEBUG level, which is the most verbose that is currently defined.
 If you want a different log level, you can set the UCI_LOGLEVEL
@@ -105,7 +124,7 @@ environment variable. Your choices are "DEBUG", "INFO", "WARNING",
 
 .. code::
 
-    $ UCI_LOGLEVEL=ERROR cloud-status
+    $ UCI_LOGLEVEL=ERROR openstack-status
 
 
 Building documentation
@@ -121,20 +140,16 @@ Documentation will be built in **docs/_build/html**, and requires **Sphinx** to 
 Running Tests
 ^^^^^^^^^^^^^
 
-Tests can be ran against a set of exported data(**default**) or a live machine. In
-order to test against live data the following environment variable is
-used.
+A unit test suite is in tests/ and is run using Nose_ and tox_.
+Tox will cover both pep8 and flakes automatically and unit tests
+do not require a live Juju or MAAS connection.
 
-
-.. code::
-
-   $ JUJU_LIVE=1 nosetests3 test
-
-For the python code, using pep8 and pyflakes is encouraged:
+Run it as follows:
 
 .. code::
 
-   $ make pyflakes
-   $ make pep8
+   $ make test
 
+.. _Nose: https://nose.readthedocs.org/en/latest/
+.. _tox: https://testrun.org/tox/latest/
 

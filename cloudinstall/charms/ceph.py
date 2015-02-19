@@ -15,45 +15,31 @@
 
 import logging
 
-from macumba import MacumbaError
 from cloudinstall.charms import CharmBase, DisplayPriorities
 
 log = logging.getLogger('cloudinstall.charms.ceph')
 
 
 class CharmCeph(CharmBase):
+
     """ Ceph directives """
 
     charm_name = 'ceph'
+    charm_rev = 31
     display_name = 'Ceph'
     menuable = True
     display_priority = DisplayPriorities.Storage
-    related = ['glance', 'mysql', 'rabbitmq-server']
+    related = ['glance', 'nova-compute']
     deploy_priority = 5
-    default_instances = 3
-    optional = True
     disabled = False
+    isolate = True
     allow_multi_units = True
+    constraints = {'mem': 1024,
+                   'root-disk': 20480}
 
-    def has_quorum(self):
-        return len(self.juju_state.machines_allocated()) >= 3
-
-    def setup(self):
-        """ Custom setup for ceph """
-        if not self.has_quorum():
-            log.debug("Insufficient machines allocated - ceph can't deploy.")
-            return True
-        if not self.is_multi:
-            log.debug("Ceph not currently supported on single installs")
-            return True
-        try:
-            self.juju.deploy(charm=self.charm_name,
-                             service_name=self.charm_name,
-                             num_units=self.default_instances)
-        except MacumbaError:
-            log.exception("Error deploying")
-            return True
-        return False
+    @classmethod
+    def required_num_units(self):
+        return 3
 
 
 __charm_class__ = CharmCeph

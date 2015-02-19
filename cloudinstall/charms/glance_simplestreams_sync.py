@@ -22,7 +22,7 @@ import shutil
 import subprocess
 
 from cloudinstall.charms import (CharmBase, DisplayPriorities,
-                                 CHARM_CONFIG,
+                                 get_charm_config,
                                  CHARM_CONFIG_FILENAME)
 
 CHARM_STABLE_URL = ("https://api.github.com/repos/Ubuntu-Solutions-Engineering"
@@ -36,9 +36,11 @@ log = logging.getLogger(__name__)
 
 
 class CharmGlanceSimplestreamsSync(CharmBase):
+
     """ Charm directives for glance-simplestreams-sync  """
 
     charm_name = 'glance-simplestreams-sync'
+    charm_rev = 1
     menuable = True
     display_name = 'Glance - Simplestreams Image Sync'
     display_priority = DisplayPriorities.Other
@@ -78,7 +80,7 @@ class CharmGlanceSimplestreamsSync(CharmBase):
             shutil.rmtree(dest)
         os.renames(src, dest)
 
-    def setup(self):
+    def deploy(self, mspec):
         """Temporary override to get local copy of charm."""
 
         log.debug("downloading stable branch from github")
@@ -88,18 +90,22 @@ class CharmGlanceSimplestreamsSync(CharmBase):
         except:
             log.exception("problem downloading stable branch."
                           " Falling back to charm store version.")
-            return super().setup()
+            return super().deploy(mspec)
 
-        kwds = dict(machine_id=self.machine_id,
+        kwds = dict(constraints=self.constraints_arg(),
                     repodir=CHARMS_DIR,
-                    distro=CURRENT_DISTRO)
+                    distro=CURRENT_DISTRO,
+                    mspec=mspec)
 
         # TODO: See if this is supported by juju api
-        cmd = ('juju deploy --repository={repodir}'
+        juju_home = self.config.juju_home(use_expansion=True)
+        cmd = ('{juju_home} juju deploy --repository={repodir}'
                ' local:{distro}/glance-simplestreams-sync'
-               ' --to {machine_id}').format(**kwds)
+               ' --constraints {constraints} '
+               '--to {mspec}').format(juju_home=juju_home, **kwds)
 
-        if self.charm_name in CHARM_CONFIG:
+        charm_config, _ = get_charm_config()
+        if self.charm_name in charm_config:
             cmd += ' --config ' + CHARM_CONFIG_FILENAME
 
         try:

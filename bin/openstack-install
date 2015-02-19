@@ -1,0 +1,254 @@
+#!/usr/bin/env python3
+# -*- mode: python; -*-
+#
+# Copyright 2014 Canonical, Ltd.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+""" CLI for creating lxc containers needed by the installer """
+
+import argparse
+import sys
+import os
+import logging
+import signal
+from functools import partial
+from cloudinstall.log import setup_logger
+import cloudinstall.utils as utils
+from cloudinstall.gui import PegasusGUI, InstallHeader
+from cloudinstall.consoleui import ConsoleUI
+from cloudinstall.install import InstallController
+from cloudinstall.config import Config
+from cloudinstall.ev import EventLoop
+from cloudinstall import __version__ as version
+
+
+def sig_handler(signum, frame):
+    sys.exit(1)
+
+for sig in (signal.SIGTERM, signal.SIGQUIT, signal.SIGINT, signal.SIGHUP):
+    signal.signal(sig, sig_handler)
+
+
+def parse_options(argv):
+    parser = argparse.ArgumentParser(description='Ubuntu Openstack Installer',
+                                     prog='openstack-install',
+                                     argument_default=argparse.SUPPRESS)
+    parser.add_argument('-i', '--install-only', action='store_true',
+                        dest='install_only',
+                        help='install and bootstrap MAAS/Juju/Landscape '
+                        '(as applicable) only. '
+                        'Will not deploy any OpenStack services '
+                        'in single or multi mode. '
+                        'You can invoke openstack-status manually to '
+                        'continue.')
+    parser.add_argument('-u', '--uninstall', action='store_true',
+                        dest='uninstall',
+                        help='Uninstalls the current cloud including removing '
+                        'of packages.')
+    parser.add_argument('-c', '--config', type=str, dest='config_file',
+                        help="Custom configuration for OpenStack installer.")
+    parser.add_argument('--charm-config', type=str, dest='charm_config_file',
+                        help="Additional charm settings")
+    parser.add_argument('-g', '--get-config', type=str, dest='get_config',
+                        default=None,
+                        help="with arg <key>, prints config value for 'key' "
+                        "to stdout and exits.")
+    parser.add_argument('-k', '--killcloud', action='store_true',
+                        dest='killcloud',
+                        help='Tear down existing cloud leaving userdata '
+                        'in place. Useful for iterative deploys.')
+    parser.add_argument('--killcloud-noprompt', action='store_true',
+                        dest='killcloud_noprompt',
+                        help='Tear down existing cloud leaving userdata '
+                        'in place. CAUTION: Does not confirm teardown, '
+                        'Use with care!')
+    parser.add_argument('--openstack-release',
+                        dest='openstack_release', default="juno",
+                        help="Specify a specific OpenStack release by "
+                        "code-name, e.g. 'icehouse' or 'juno'")
+    parser.add_argument('-a', type=str, default=None,
+                        help='<arch, ..> comma-separated list of '
+                        'architectures to filter available cloud '
+                        'images with which to populate Glance, '
+                        'e.g. amd64,arm64', dest='arch')
+    parser.add_argument('-r', type=str, default=None, dest='release',
+                        help='<rel, ..> comma-separated list of Ubuntu '
+                        'releases to filter available cloud images with '
+                        'which to populate Glance, e.g. precise,trusty')
+    parser.add_argument('-p', '--placement', action='store_true',
+                        dest='edit_placement',
+                        help='Show machine placement UI before deploying')
+    parser.add_argument('--extra-ppa', nargs='+', dest='extra_ppa',
+                        help='Append additional ppas to the single installers '
+                        'cloud-init configuration.')
+    parser.add_argument('--upstream-deb', dest='upstream_deb',
+                        help='Upload a local copy of openstack debian package '
+                        'to be used in a single install. (DEVELOPERS)')
+    parser.add_argument('--http-proxy', dest='http_proxy',
+                        help='Specify HTTP proxy')
+    parser.add_argument('--https-proxy', dest='https_proxy',
+                        help='Specify HTTPS proxy')
+    parser.add_argument('--headless', action='store_true',
+                        help="Run deployment without prompts/gui",
+                        dest='headless')
+    parser.add_argument('--storage', dest='storage_backend',
+                        choices=['ceph', 'swift'],
+                        help="Choose storage backend to deploy initially.")
+    parser.add_argument(
+        '--version', action='version', version='%(prog)s {}'.format(version))
+    return parser.parse_args(argv)
+
+if __name__ == '__main__':
+    opts = parse_options(sys.argv[1:])
+    cfg = Config(utils.populate_config(opts))
+
+    if sys.getdefaultencoding() != 'utf-8':
+        print("Ubuntu OpenStack Installer requires unicode support. "
+              "Please enable this on the system running the installer.\n\n")
+        print("Example:\n")
+        print("  export LC_ALL=en_US.UTF-8")
+        print("  export LANG=en_US.UTF-8")
+        print("  export LANGUAGE=en_US.UTF-8")
+        sys.exit(1)
+
+    if opts.get_config:
+        val = cfg.getopt(opts.get_config)
+        if val:
+            sys.stdout.write(val)
+        sys.exit(0)
+
+    try:
+        setup_logger(headless=cfg.getopt('headless'))
+    except PermissionError:
+        print("Permission error accessing log file.\n"
+              "This probably indicates a broken partial install.\n"
+              "Please use 'openstack-install -u' to uninstall, "
+              "and try again.\n"
+              "(You may want to save a copy of ~/.cloud-install/commands.log"
+              " for reporting a bug.)")
+        sys.exit(1)
+
+    logger = logging.getLogger('openstack-install')
+    logger.info('openstack-install starting')
+
+    if os.geteuid() != 0:
+        sys.exit(
+            "Installing a cloud requires root privileges. Rerun with sudo")
+
+    if not os.path.exists(cfg.cfg_path):
+        os.makedirs(cfg.cfg_path)
+        utils.chown(cfg.cfg_path, utils.install_user())
+
+    if not os.path.exists(cfg.juju_path()):
+        logger.info("Creating juju directories: {}".format(cfg.juju_path()))
+        os.makedirs(cfg.juju_path())
+        utils.chown(
+            cfg.juju_path(), utils.install_user(), utils.install_user())
+
+    if cfg.getopt('uninstall'):
+        msg = ("Warning:\n\nThis will uninstall OpenStack and "
+               "make a best effort to return the system back "
+               "to its original state.")
+        print(msg)
+        yn = input("Proceed? [y/N] ")
+        if "y" in yn or "Y" in yn:
+            print("Restoring system to last known state.")
+            os.execl('/usr/share/openstack/tools/openstack-uninstall', '')
+        else:
+            print("Uninstall cancelled.")
+            sys.exit(1)
+
+    if cfg.getopt('killcloud') or cfg.getopt('killcloud_noprompt'):
+        if cfg.is_single():
+            msg = ("Warning:\n\nThis will destroy the host Container "
+                   "housing the OpenStack private cloud. This is a permanent "
+                   "operation.")
+            print(msg)
+            if cfg.getopt('killcloud_noprompt'):
+                yn = "Y"
+            else:
+                yn = input("Proceed? [y/N] ")
+            if "y" in yn or "Y" in yn:
+                try:
+                    print("Removing static route")
+                    ip = utils.container_ip('uoi-bootstrap')
+                    out = utils.get_command_output(
+                        'ip route del 10.0.4.0/24 via {} dev lxcbr0'.format(ip))
+                    logger.debug("Removed route: {}".format(out['output']))
+                except:
+                    logger.exception("No static route defined.")
+                    print("No static route defined.")
+                print("Removing host container...")
+                utils.container_stop('uoi-bootstrap')
+                utils.container_destroy('uoi-bootstrap')
+                if os.path.isfile(os.path.join(cfg.cfg_path, 'installed')):
+                    os.remove(os.path.join(cfg.cfg_path, 'installed'))
+                print("Container is removed.")
+                sys.exit(0)
+            else:
+                print("Destroying container cancelled.")
+                sys.exit(1)
+        else:
+            print('Only supports killing a single install for now.')
+            sys.exit(1)
+
+    if os.path.isfile(os.path.join(cfg.cfg_path, 'installed')):
+        msg = ("\n\nError:\n\n"
+               "Previous installation detected. Did you mean to run "
+               "openstack-status instead? \n"
+               "If attempting to re-install please run "
+               "    $ sudo openstack-install -u\n\n")
+        print(msg)
+        sys.exit(1)
+
+    out = utils.get_command_output(
+        '{} juju api-endpoints'.format(cfg.juju_home()), user_sudo=True)
+    if out['status'] == 0:
+        msg = ("\n\nExisting OpenStack environment detected. Please destroy "
+               "that environment before proceeding with a new install.\n\n")
+        print(msg)
+        sys.exit(1)
+
+    if cfg.getopt('openstack_release'):
+        logger.info(
+            'Running {} release'.format(cfg.getopt('openstack_release')))
+        utils.spew(os.path.join(cfg.cfg_path, 'openstack_release'),
+                   cfg.getopt('openstack_release'), owner=utils.install_user())
+
+    if cfg.getopt('headless'):
+        ui = ConsoleUI()
+    else:
+        ui = PegasusGUI(header=InstallHeader())
+
+    # Set proxy
+    if cfg.getopt('http_proxy'):
+        os.environ['HTTP_PROXY'] = cfg.getopt('http_proxy')
+        os.environ['http_proxy'] = cfg.getopt('http_proxy')
+    if cfg.getopt('https_proxy'):
+        os.environ['HTTPS_PROXY'] = cfg.getopt('https_proxy')
+        os.environ['https_proxy'] = cfg.getopt('https_proxy')
+
+    # Choose event loop
+    ev = EventLoop(ui, cfg, logger)
+
+    install = InstallController(
+        ui=ui, config=cfg, loop=ev)
+    logger.info("OpenStack install using eventloop {} "
+                "with options: {}".format(ev, opts))
+
+    import atexit
+    atexit.register(partial(utils.cleanup, cfg))
+    install.start()
+    sys.exit(ev.error_code)

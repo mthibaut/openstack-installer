@@ -1,0 +1,188 @@
+#!/usr/bin/env python3
+# -*- mode: python -*-
+#
+# Copyright 2014 Canonical, Ltd.
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+import sys
+BASE_PATH = '/usr/share/openstack'
+sys.path.insert(0, BASE_PATH)
+
+import uuid
+import yaml
+import os
+import argparse
+import cloudinstall.utils as utils
+import shlex
+import time
+from cloudinstall.config import Config
+
+from subprocess import call
+
+VM_DIR = os.path.join(os.path.expanduser('~'), 'VMS')
+
+
+def parse_options(argv):
+    parser = argparse.ArgumentParser(description='Ubuntu Openstack Installer',
+                                     prog='openstack-install')
+    parser.add_argument('-d', type=str, help='Where to store VMS',
+                        dest='vm_storage_dir')
+    parser.add_argument('--num-vms', type=int, default=1,
+                        help='Number of VMs to spin up', dest='num_vms')
+    parser.add_argument('--prefix', type=str,
+                        dest='vm_prefix', metavar="NAME",
+                        help='Specify a vm prefix', default='uoi-bootstrap')
+    parser.add_argument('--vm-config', type=str, dest='vm_config',
+                        help='Location of vm configuration',
+                        default="virt-uoi-bootstrap.xml")
+    parser.add_argument('--vm-image-size', type=str, dest='vm_image_size',
+                        help='Size of vm in gigabyte(s)', default='15G')
+    parser.add_argument('--bridge-iface', type=str, dest='bridge_interface',
+                        help='Network bridge for VMs to utilize during '
+                        'MAAS deployments (e.g. "br0")',
+                        default="br0")
+    parser.add_argument('--destroy-all', dest='destroy', action='store_true',
+                        default=False,
+                        help='Destroy all machines (destructive)')
+    parser.add_argument('--for-lds', action='store_true',
+                        default=False, dest='for_lds',
+                        help='Creates VMs with required hardware for '
+                        'Landscape OpenStack Autopilot.')
+    return parser.parse_args(argv)
+
+
+def populate_config(opts):
+    presaved_config = os.path.join(
+        utils.install_home(), '.vm-batch.config.yaml')
+
+    # Always override presaved config if defined in cli switch
+    if os.path.exists(presaved_config):
+        _cfg = yaml.load(utils.slurp(presaved_config))
+    else:
+        _cfg = {}
+    # Update cfg dict with command line opts
+    _cfg.update(vars(opts))
+    return Config(cfg_obj=_cfg, cfg_file=presaved_config)
+
+if __name__ == '__main__':
+    opts = parse_options(sys.argv[1:])
+    cfg = populate_config(opts)
+
+    if os.geteuid() != 0:
+        sys.exit('Please run with sudo.')
+
+    # Where to store VMS
+    if cfg.getopt('vm_storage_dir'):
+        VM_DIR = cfg.getopt('vm_storage_dir')
+
+    if not os.path.exists(VM_DIR):
+        os.makedirs(VM_DIR)
+
+    print("Switching to directory: {}".format(VM_DIR))
+    os.chdir(VM_DIR)
+
+    if not cfg.getopt('vm_config') and not cfg.getopt('destroy'):
+        raise SystemExit('A valid libvirt vm definition file is required.')
+
+    if cfg.getopt('destroy'):
+        msg = ("Warning:\n\nThis will tear down and remove all vms "
+               "created with this script.")
+        print(msg)
+        yn = input("Proceed? [y/N] ")
+        if "y" in yn or "Y" in yn:
+            for vm in range(opts.num_vms):
+                img_name = "{0}-{1}".format(opts.vm_prefix, vm)
+                cmd = 'virsh destroy {0}'.format(img_name)
+                call(shlex.split(cmd))
+            raise SystemExit('Removal completed.')
+        else:
+            raise SystemExit("Removal canceled.")
+
+    # create image disks
+    print("Creating virtual machines...")
+    if cfg.getopt('for_lds'):
+        original_data = utils.load_template('virt-uoi-container-2HDD-2NIC.xml')
+        cfg.setopt('num_vms', 7)
+    else:
+        original_data = utils.load_template(cfg.getopt('vm_config'))
+
+    for vm in range(cfg.getopt('num_vms')):
+        # image name
+        img_name = "{0}-{1}".format(cfg.getopt('vm_prefix'), vm)
+        img = ".".join((img_name, 'img'))
+        img_path = os.path.join(VM_DIR, img)
+        if os.path.isfile(img_path):
+            raise SystemExit('Disk image already exists, will not overwrite.')
+
+        if cfg.getopt('for_lds'):
+            img_name_secondary = "uoi-container-{0}".format(vm)
+            img_secondary = ".".join((img_name_secondary, 'img'))
+            img_path_secondary = os.path.join(VM_DIR, img_secondary)
+
+        # populate proper xml
+        uuid_str = uuid.uuid1()
+        template_vars = dict(vm_name=img_name,
+                             uuid=str(uuid_str),
+                             macaddr=utils.macgen(),
+                             bridge=opts.bridge_interface,
+                             image_path=img_path)
+
+        if cfg.getopt('for_lds'):
+            template_vars['image_path_secondary'] = img_path_secondary
+            template_vars['macaddr_secondary'] = utils.macgen()
+            vm_conf = ".".join((img_name_secondary, 'xml'))
+        else:
+            vm_conf = ".".join((img_name, 'xml'))
+
+        vm_conf_path = os.path.join(VM_DIR, vm_conf)
+        modified_data = original_data.render(template_vars)
+        utils.spew(vm_conf_path, modified_data)
+
+        if cfg.getopt('for_lds'):
+            cmd = 'qemu-img create {0} {1}'.format(
+                img_path_secondary, cfg.getopt('vm_image_size'))
+            print(cmd)
+            call(shlex.split(cmd))
+
+        cmd = 'qemu-img create {0} {1}'.format(
+            img_path, cfg.getopt('vm_image_size'))
+        print(cmd)
+        call(shlex.split(cmd))
+
+        time.sleep(1)
+
+        # Undefine current domain
+        if cfg.getopt('for_lds'):
+            cmd = 'virsh undefine {0}'.format(img_name_secondary)
+        else:
+            cmd = 'virsh undefine {0}'.format(img_name)
+        print(cmd)
+        call(shlex.split(cmd))
+
+        cmd = 'virsh define {0}'.format(vm_conf_path)
+        print(cmd)
+        call(shlex.split(cmd))
+
+        time.sleep(1)
+
+        if cfg.getopt('for_lds'):
+            cmd = 'virsh start {0}'.format(img_name_secondary)
+        else:
+            cmd = 'virsh start {0}'.format(img_name)
+        print(cmd)
+        call(shlex.split(cmd))
+
+    # Update permissions
+    utils.chown(VM_DIR, utils.install_user(), utils.install_user(), True)

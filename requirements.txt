@@ -12,6 +12,9 @@ nose-cov
 readthedocs-sphinx-ext
 pyflakes>=0.8.1
 pep8>=1.5.6
-termcolor
+sphinx_rtd_theme
 macumba
 maasclient
+jinja2
+lxml
+netaddr

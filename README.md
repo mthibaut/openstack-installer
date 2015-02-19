@@ -1,6 +1,13 @@
-# Ubuntu Openstack Installer
+# Ubuntu OpenStack Installer
+[![Build Status](https://travis-ci.org/Ubuntu-Solutions-Engineering/openstack-installer.svg?branch=master)](https://travis-ci.org/Ubuntu-Solutions-Engineering/openstack-installer)
+[![Coverage Status](https://coveralls.io/repos/Ubuntu-Solutions-Engineering/openstack-installer/badge.svg?branch=master)](https://coveralls.io/r/Ubuntu-Solutions-Engineering/openstack-installer?branch=master)
+[![Documentation Status](https://readthedocs.org/projects/ubuntu-cloud-installer/badge/?version=latest)](https://readthedocs.org/projects/ubuntu-cloud-installer/?badge=latest)
 
-[![Build Status](https://travis-ci.org/Ubuntu-Solutions-Engineering/cloud-installer.svg?branch=master)](https://travis-ci.org/Ubuntu-Solutions-Engineering/cloud-installer)
+## Support
+
+IRC: **freenode.net** in channel **#ubuntu-solutions**
+
+Mailing list: https://lists.ubuntu.com/mailman/listinfo/ubuntu-openstack-installer
 
 ## Developers
 
@@ -10,6 +17,7 @@
 
 * [Single Installer guide](http://ubuntu-cloud-installer.readthedocs.org/en/latest/single-installer.guide.html)
 * [Multi Installer guide](http://ubuntu-cloud-installer.readthedocs.org/en/latest/multi-installer.guide.html)
+* [Landscape OpenStack Autopilot Guide](http://www.ubuntu.com/download/cloud/install-ubuntu-openstack)
 
 # Copyright
 

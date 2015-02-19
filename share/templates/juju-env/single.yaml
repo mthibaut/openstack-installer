@@ -1,0 +1,38 @@
+default: local
+
+environments:
+  local:
+    type: local
+    container: kvm
+    lxc-clone: true
+    authorized-keys-path: ~/.ssh/id_rsa.pub
+    network-bridge: lxcbr0
+    default-series: trusty
+    admin-secret: {{openstack_password}}
+{% if http_proxy %}
+    http-proxy: {{http_proxy}}
+{% endif %}
+{% if https_proxy %}
+    https-proxy: {{https_proxy}}
+{% endif %}
+{% if http_proxy or https_proxy %}
+    no-proxy: localhost
+{% endif %}
+
+  openstack:
+    type: openstack
+    use-floating-ip: true
+    use-default-secgroup: true
+    network: ubuntu-net
+    auth-url: http://keystoneurl:5000/v2.0/
+    tenant-name: ubuntu
+    region: RegionOne
+    auth-mode: userpass
+    username: ubuntu
+    password: {{openstack_password}}
+{% if http_proxy %}
+    http-proxy: {{http_proxy}}
+{% endif %}
+{% if https_proxy %}
+    https-proxy: {{https_proxy}}
+{% endif %}

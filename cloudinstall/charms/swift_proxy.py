@@ -20,13 +20,13 @@ class CharmSwiftProxy(CharmBase):
     """ swift directives """
 
     charm_name = 'swift-proxy'
+    charm_rev = 8
     display_name = 'Swift Proxy'
     display_priority = DisplayPriorities.Storage
     related = ['keystone', 'glance']
     deploy_priority = 5
-    constraints = {'mem': '1G',
-                   'root-disk': '8G'}
-    optional = True
+    constraints = {'mem': 1024,
+                   'root-disk': 8192}
     allow_multi_units = False
     menuable = True
 

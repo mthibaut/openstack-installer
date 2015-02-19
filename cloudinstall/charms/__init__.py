@@ -26,17 +26,24 @@ import requests
 
 from macumba import MacumbaError
 from cloudinstall import utils
-from cloudinstall.config import Config
+from cloudinstall.placement.controller import AssignmentType
 
 log = logging.getLogger('cloudinstall.charms')
 
 CHARM_CONFIG_FILENAME = path.expanduser("~/.cloud-install/charmconf.yaml")
-CHARM_CONFIG = {}
-CHARM_CONFIG_RAW = None
-if path.exists(CHARM_CONFIG_FILENAME):
-    with open(CHARM_CONFIG_FILENAME) as f:
-        CHARM_CONFIG_RAW = f.read()
-        CHARM_CONFIG = yaml.load(CHARM_CONFIG_RAW)
+
+
+def get_charm_config():
+    """Returns charm config as python dict and raw yaml, if the file exists.
+    Returns {}, None if the file does not exist.
+    """
+    charm_config = {}
+    charm_config_raw = None
+    if path.exists(CHARM_CONFIG_FILENAME):
+        with open(CHARM_CONFIG_FILENAME) as f:
+            charm_config_raw = f.read()
+            charm_config = yaml.load(charm_config_raw)
+    return charm_config, charm_config_raw
 
 
 def query_cs(charm, series='trusty'):
@@ -53,6 +60,7 @@ def query_cs(charm, series='trusty'):
 
 
 class DisplayPriorities:
+
     """A fake enum"""
     Core = 0
     Error = 1
@@ -61,7 +69,7 @@ class DisplayPriorities:
     Other = 30
 
 
-def get_charm(charm_name, juju, juju_state, ui):
+def get_charm(charm_name, juju, juju_state, ui, config):
     """ returns single charm class
 
     :param str charm_name: name of charm to query
@@ -70,40 +78,47 @@ def get_charm(charm_name, juju, juju_state, ui):
     :returns: charm class
     """
     for charm in utils.load_charms():
-        c = charm.__charm_class__(juju=juju, juju_state=juju_state, ui=ui)
+        c = charm.__charm_class__(juju=juju,
+                                  juju_state=juju_state,
+                                  ui=ui,
+                                  config=config)
         if charm_name == c.name():
             return c
 
 
 class CharmBase:
+
     """ Base charm class """
 
     charm_name = None
+    charm_rev = None
     display_name = None
     related = []
     isolate = False
-    constraints = None
+    constraints = {}
     deploy_priority = sys.maxsize
     display_priority = DisplayPriorities.Core
     allow_multi_units = False
-    optional = False
+    allowed_assignment_types = list(AssignmentType)
     disabled = False
     menuable = False
-    machine_id = ""
+    subordinate = False
+    openstack_release_min = 'i'
 
-    def __init__(self, juju=None, juju_state=None, machine=None, ui=None):
+    def __init__(self, config, ui, juju, juju_state,
+                 machine=None):
         """ initialize
 
         :param state: :class:JujuState
         :param machine: :class:Machine
         """
-        self.config = Config()
         self.charm_path = None
         self.exposed = False
         self.machine = machine
         self.juju = juju
         self.juju_state = juju_state
         self.ui = ui
+        self.config = config
 
     def _openstack_env(self, user, password, tenant, auth_url):
         """ setup openstack environment vars """
@@ -146,6 +161,12 @@ export OS_REGION_NAME=RegionOne
             return False
 
     @classmethod
+    def required_num_units(self):
+        """Override this in subclasses to force placement of multiple
+        units."""
+        return 1
+
+    @classmethod
     def name(class_):
         """ Return charm name
 
@@ -156,7 +177,15 @@ export OS_REGION_NAME=RegionOne
             return class_.charm_name
         return class_.__name__.lower()
 
-    def setup(self):
+    def constraints_arg(self):
+        """ converts self.constraints into arg form for juju CLI"""
+        args = []
+        for k, v in self.constraints.items():
+            args.append("{}={}".format(k, ','.join(v)))
+        all_args = " ".join(args)
+        return "\"{}\"".format(all_args)
+
+    def deploy(self, machine_spec, num_units=None):
         """ Deploy charm and configuration options
 
         The default should be sufficient but if more functionality
@@ -168,32 +197,55 @@ export OS_REGION_NAME=RegionOne
         Note that the False (no-error) return value does not indicate
         that service is up and running.
         """
-        machine_spec = str(self.machine_id)
-        num_units = 1
         config_yaml = ""
-        constraints = None
 
-        if self.charm_name in CHARM_CONFIG:
-            config_yaml = CHARM_CONFIG_RAW
+        _charm_name_rev = self.charm_name
 
-        if self.isolate:
-            machine_spec = ""
-            constraints = self.constraints
+        charm_config, charm_config_raw = get_charm_config()
+        log.debug("charm_config = {} ".format(charm_config))
+        if self.charm_name in charm_config:
+            config_yaml = charm_config_raw
+
+        # Set revision
+        if self.charm_rev:
+            _charm_name_rev = "{}-{}".format(self.charm_name, self.charm_rev)
+
+        if self.subordinate:
+            assert(num_units is None)
+            num_units = 0
+            assert(len(self.constraints) == 0)
+            self.constraints = None
+            machine_spec = None
+        else:
+            if num_units is None:
+                num_units = 1
 
         try:
-            self.juju.deploy(self.charm_name, self.charm_name, num_units,
-                             config_yaml, constraints, machine_spec)
+            # TODO - might not need to pass self.constraints to deploy
+
+            log.debug('calling deploy({}, {}, {}, {}, {}, {})'.format(
+                _charm_name_rev, self.charm_name, num_units,
+                config_yaml, self.constraints, machine_spec))
+
+            self.juju.deploy(_charm_name_rev, self.charm_name, num_units,
+                             config_yaml, self.constraints, machine_spec)
         except MacumbaError:
             log.exception("Error deploying")
             return True
 
-        log.debug('Deployed {} with params: {} {} {} {}'.format(
-            self.charm_name,
-            machine_spec,
-            num_units,
-            config_yaml,
-            constraints))
         self.ui.status_info_message("Deployed {0}.".format(self.display_name))
+        return False
+
+    def add_unit(self, machine_spec, num_units=1):
+        """Add num_units of an already-deployed service onto machine_spec.
+
+        Returns true in case of an error.
+        """
+        try:
+            self.juju.add_unit(self.charm_name, num_units, machine_spec)
+        except MacumbaError:
+            log.exception("Error adding unit")
+            return True
         return False
 
     def set_relations(self):
@@ -209,6 +261,8 @@ export OS_REGION_NAME=RegionOne
             for charm in self.related:
                 if not self.is_related(charm, services.relations):
                     try:
+                        log.debug("calling add_relation({}, {})".format(
+                            self.charm_name, charm))
                         self.juju.add_relation(self.charm_name,
                                                charm)
                     except:
@@ -256,53 +310,54 @@ export OS_REGION_NAME=RegionOne
                 status_res.append(False)
         return all(status_res)
 
-    def _pubkey(self):
-        """ return ssh pub key """
-        return path.expanduser('~/.ssh/id_rsa.pub')
-
     def __repr__(self):
         return self.name()
 
 
 class CharmQueue:
+
     """ charm queue for handling relations in the background
     """
-    def __init__(self, ui):
+
+    def __init__(self, ui, config):
         self.charm_relations_q = Queue()
-        self.charm_setup_q = Queue()
+        self.charm_deploy_q = Queue()
         self.charm_post_proc_q = Queue()
         self.is_running = False
         self.ui = ui
+        self.config = config
 
     def add_relation(self, charm):
         self.charm_relations_q.put(charm)
 
-    def add_setup(self, charm):
-        self.charm_setup_q.put(charm)
+    def add_deploy(self, charm):
+        self.charm_deploy_q.put(charm)
 
     def add_post_proc(self, charm):
         self.charm_post_proc_q.put(charm)
 
-    @utils.async
-    def watch_setup(self):
-        log.debug("Starting charm setup watcher.")
-        while True:
+    def watch_deploy(self):
+        log.debug("Starting charm deploy watcher.")
+        while not self.charm_deploy_q.empty():
             try:
-                charm = self.charm_setup_q.get()
-                err = charm.setup()
+                charm = self.charm_deploy_q.get()
+                err = charm.deploy()  # TODO call with machine placement
                 if err:
-                    self.charm_setup_q.put(charm)
-                self.charm_setup_q.task_done()
+                    self.charm_deploy_q.put(charm)
+                self.charm_deploy_q.task_done()
             except:
-                msg = "Exception in setup watcher, re-trying."
+                msg = "Exception in deploy watcher, re-trying."
                 log.exception(msg)
                 self.ui.status_error_message(msg)
             time.sleep(10)
 
     @utils.async
+    def watch_relations_async(self):
+        self.watch_relations()
+
     def watch_relations(self):
         log.debug("Starting charm relations watcher.")
-        while True:
+        while not self.charm_relations_q.empty():
             try:
                 charm = self.charm_relations_q.get()
                 err = charm.set_relations()
@@ -316,9 +371,12 @@ class CharmQueue:
             time.sleep(10)
 
     @utils.async
+    def watch_post_proc_async(self):
+        self.watch_post_proc()
+
     def watch_post_proc(self):
         log.debug("Starting charm post processing watcher.")
-        while True:
+        while not self.charm_post_proc_q.empty():
             try:
                 charm = self.charm_post_proc_q.get()
                 err = charm.post_proc()
@@ -330,3 +388,4 @@ class CharmQueue:
                 log.exception(msg)
                 self.ui.status_error_message(msg)
             time.sleep(10)
+        self.config.setopt('deploy_complete', True)

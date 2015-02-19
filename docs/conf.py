@@ -37,7 +37,8 @@ class Mock(object):
         else:
             return Mock()
 
-MOCK_MODULES = ['yaml', 'ws4py', 'urwid', 'maasclient', 'macumba']
+MOCK_MODULES = ['yaml', 'ws4py', 'urwid',
+                'maasclient', 'macumba', 'maasclient.auth']
 for mod_name in MOCK_MODULES:
     sys.modules[mod_name] = Mock()
 
@@ -121,6 +122,13 @@ pygments_style = 'perldoc'
 # a list of builtin themes.
 html_theme = 'default'
 
+on_rtd = os.environ.get('READTHEDOCS', None) == 'True'
+
+if not on_rtd:  # only import and set the theme if we're building docs locally
+    import sphinx_rtd_theme
+    html_theme = 'sphinx_rtd_theme'
+    html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
 # documentation.
@@ -134,7 +142,7 @@ html_theme = 'default'
 #html_title = None
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
-html_short_title = "Ubuntu Openstack Installer"
+html_short_title = "Ubuntu OpenStack Installer"
 
 # The name of an image file (relative to this directory) to place at the top
 # of the sidebar.
@@ -213,7 +221,7 @@ latex_elements = {
 # [howto/manual]).
 latex_documents = [
     ('index', 'UbuntuCloudInstaller.tex',
-     u'Ubuntu Openstack Installer Documentation',
+     u'Ubuntu OpenStack Installer Documentation',
      u'Solutions Engineering', 'manual'),
 ]
 
@@ -243,11 +251,16 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    ('cloud-install', 'cloud-install',
-     u'Ubuntu Openstack Installer Documentation',
+    ('openstack-install', 'openstack-install',
+     u'Ubuntu OpenStack Installer Documentation',
      [u'Canonical Solutions Engineering'], 1),
-    ('cloud-status', 'cloud-status', u'Ubuntu Openstack Status Documentation',
+    ('openstack-status', 'openstack-status',
+     u'Ubuntu OpenStack Status Documentation',
+     [u'Canonical Solutions Engineering'], 1),
+    ('openstack-juju', 'openstack-juju',
+     u'Ubuntu OpenStack Juju Documentation',
      [u'Canonical Solutions Engineering'], 1)
+
 ]
 
 # If true, show URL addresses after external links.
@@ -261,8 +274,8 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     ('index', 'UbuntuCloudInstaller',
-     u'Ubuntu Openstack Installer Documentation',
-     u'Solutions Engineering', 'UbuntuCloudInstaller', 'Openstack',
+     u'Ubuntu OpenStack Installer Documentation',
+     u'Solutions Engineering', 'UbuntuCloudInstaller', 'OpenStack',
      'Miscellaneous'),
 ]
 
