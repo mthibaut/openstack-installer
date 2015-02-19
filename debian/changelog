@@ -1,4 +1,4 @@
-openstack (0.22-0ubuntu1~15.04) vivid; urgency=medium
+openstack (0.22-0ubuntu1~14.04.2) trusty; urgency=medium
 
   * New stable release
   * Support for MAAS 1.7
