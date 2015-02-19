@@ -1,4 +1,4 @@
-openstack (0.22-0ubuntu1~14.04.2) trusty; urgency=medium
+openstack (0.22-0ubuntu1) UNRELEASED; urgency=medium
 
   * New stable release
   * Support for MAAS 1.7
