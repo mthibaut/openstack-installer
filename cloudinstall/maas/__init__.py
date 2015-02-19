@@ -18,8 +18,8 @@
 
 from cloudinstall.machine import Machine
 from cloudinstall.utils import human_to_mb
-from cloudinstall.maasclient.auth import MaasAuth
-from cloudinstall.maasclient import MaasClient
+from maasclient.auth import MaasAuth
+from maasclient import MaasClient
 from collections import Counter
 from enum import Enum
 import json
