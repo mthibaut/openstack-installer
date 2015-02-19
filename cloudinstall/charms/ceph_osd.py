@@ -13,21 +13,26 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+import logging
+
 from cloudinstall.charms import CharmBase, DisplayPriorities
 
+log = logging.getLogger('cloudinstall.charms.ceph')
 
-class CharmSwiftProxy(CharmBase):
-    """ swift directives """
 
-    charm_name = 'swift-proxy'
-    charm_rev = 8
-    display_name = 'Swift Proxy'
-    display_priority = DisplayPriorities.Storage
-    related = ['keystone', 'glance']
-    deploy_priority = 5
-    constraints = {'mem': 1024,
-                   'root-disk': 8192}
-    allow_multi_units = False
+class CharmCephOSD(CharmBase):
+    """ Ceph OSD directives """
+
+    charm_name = 'ceph-osd'
+    charm_rev = 5
+    display_name = 'Ceph OSD'
     menuable = True
+    display_priority = DisplayPriorities.Storage
+    related = ['ceph']
+    deploy_priority = 5
+    disabled = False
+    isolate = True
+    allow_multi_units = True
 
-__charm_class__ = CharmSwiftProxy
+
+__charm_class__ = CharmCephOSD
