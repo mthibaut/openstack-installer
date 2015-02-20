@@ -104,7 +104,8 @@ def parse_options(argv):
                         help="Run deployment without prompts/gui",
                         dest='headless')
     parser.add_argument('--storage', dest='storage_backend',
-                        choices=['ceph', 'swift'],
+                        default='none',
+                        choices=['ceph', 'swift', 'none'],
                         help="Choose storage backend to deploy initially.")
     parser.add_argument(
         '--version', action='version', version='%(prog)s {}'.format(version))
