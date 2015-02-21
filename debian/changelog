@@ -1,4 +1,8 @@
-openstack (0.22-0ubuntu1) UNRELEASED; urgency=medium
+openstack (0.22.1-0ubuntu1~14.04.1~stable1) trusty; urgency=medium
+
+  * Update charm revisions
+
+ -- Adam Stokes <adam.stokes@ubuntu.com>  Fri, 20 Feb 2015 11:15:59 -0500
 
   * New stable release
   * Support for MAAS 1.7
