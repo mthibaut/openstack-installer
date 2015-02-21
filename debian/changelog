@@ -1,8 +1,4 @@
-openstack (0.22.1-0ubuntu1~14.04.1~stable1) trusty; urgency=medium
-
-  * Update charm revisions
-
- -- Adam Stokes <adam.stokes@ubuntu.com>  Fri, 20 Feb 2015 11:15:59 -0500
+openstack (0.22.1-0ubuntu1~15.04.1~stable1) vivid; urgency=medium
 
   * New stable release
   * Support for MAAS 1.7
@@ -11,7 +7,7 @@ openstack (0.22.1-0ubuntu1~14.04.1~stable1) trusty; urgency=medium
   * Machine Placement UI
   * Single, Multi, and Landscape OpenStack Autopilot support
 
- -- Adam Stokes <adam.stokes@ubuntu.com>  Wed, 28 Jan 2015 02:55:15 -0500
+ -- Adam Stokes <adam.stokes@ubuntu.com>  Sat, 21 Feb 2015 15:32:15 -0500
 
 openstack (0.21-0ubuntu1) utopic; urgency=medium
 
