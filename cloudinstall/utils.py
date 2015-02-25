@@ -214,12 +214,15 @@ def render_charm_config(config):
     charm_conf = load_template('charmconf.yaml')
     template_args = dict(
         install_type=config.getopt('install_type'),
-        openstack_password=config.getopt('openstack_password'))
+        openstack_password=config.getopt('openstack_password'),
+        ubuntu_series=config.getopt('ubuntu_series'))
 
     if config.getopt('openstack_release'):
         template_args['openstack_release'] = config.getopt(
             'openstack_release')
-        ubuntu_distname = platform.dist()[-1]
+        ubuntu_distname = config.getopt('ubuntu_series')
+        if not ubuntu_distname:
+            ubuntu_distname = platform.dist()[-1]
         openstack_origin = "cloud:{}-{}".format(
             ubuntu_distname, config.getopt('openstack_release'))
         template_args['openstack_origin'] = openstack_origin
