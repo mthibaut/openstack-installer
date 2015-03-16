@@ -15,6 +15,7 @@
 
 import logging
 from cloudinstall.charms import CharmBase
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.charms.ceilometer')
 
@@ -37,5 +38,6 @@ class CharmCeilometer(CharmBase):
                 'keystone:identity-notifications'),
                ('ceilometer:ceilometer-service',
                 'ceilometer-agent:ceilometer-service')]
+    charm_state = CharmState.OPTIONAL
 
 __charm_class__ = CharmCeilometer

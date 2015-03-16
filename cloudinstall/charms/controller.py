@@ -17,6 +17,7 @@ import os
 import logging
 from cloudinstall import utils
 from cloudinstall.charms import CharmBase
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.charms.controller')
 
@@ -39,6 +40,8 @@ class CharmNovaCloudController(CharmBase):
                ('keystone:identity-service',
                 'nova-cloud-controller:identity-service')]
     allow_multi_units = False
+    charm_state = CharmState.REQUIRED
+    depends = ['mysql', 'rabbitmq', 'glance', 'keystone']
 
     def post_proc(self):
         """ post processing for nova-cloud-controller """

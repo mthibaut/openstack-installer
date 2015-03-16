@@ -16,6 +16,7 @@
 import logging
 
 from cloudinstall.charms import CharmBase, DisplayPriorities
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.charms.ceph')
 
@@ -39,6 +40,8 @@ class CharmCeph(CharmBase):
     allow_multi_units = True
     constraints = {'mem': 1024,
                    'root-disk': 20480}
+    charm_state = CharmState.OPTIONAL
+    conflicts = ['swift-storage', 'swift-proxy']
 
     @classmethod
     def required_num_units(self):

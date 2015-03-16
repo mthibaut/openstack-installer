@@ -32,3 +32,11 @@ class ControllerState(IntEnum):
     INSTALL_WAIT = 0
     PLACEMENT = 1
     SERVICES = 2
+
+
+class CharmState(IntEnum):
+
+    """ Charm relation states """
+    REQUIRED = 0
+    OPTIONAL = 1
+    CONFLICTED = 1

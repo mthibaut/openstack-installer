@@ -14,9 +14,11 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from cloudinstall.charms import CharmBase, DisplayPriorities
+from cloudinstall.state import CharmState
 
 
 class CharmSwiftProxy(CharmBase):
+
     """ swift directives """
 
     charm_name = 'swift-proxy'
@@ -32,5 +34,8 @@ class CharmSwiftProxy(CharmBase):
                    'root-disk': 8192}
     allow_multi_units = False
     menuable = True
+    charm_state = CharmState.OPTIONAL
+    depends = ['swift-storage']
+    conflicts = ['ceph', 'cinder', 'cinder-ceph', 'ceph-osd', 'ceph-radosgw']
 
 __charm_class__ = CharmSwiftProxy

@@ -16,6 +16,7 @@
 import logging
 
 from cloudinstall.charms import CharmBase
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.charms.ceilometer_agent')
 
@@ -30,5 +31,6 @@ class CharmCeilometerAgent(CharmBase):
     subordinate = True
     contrib = True
     deploy_priority = 0
+    charm_state = CharmState.OPTIONAL
 
 __charm_class__ = CharmCeilometerAgent

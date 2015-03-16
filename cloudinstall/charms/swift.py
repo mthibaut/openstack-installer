@@ -16,6 +16,7 @@
 import logging
 from cloudinstall.charms import (CharmBase, get_charm_config,
                                  DisplayPriorities)
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.charms.compute')
 
@@ -34,6 +35,10 @@ class CharmSwift(CharmBase):
     default_replicas = 3
     isolate = True
     allow_multi_units = True
+    charm_state = CharmState.OPTIONAL
+    conflicts = ['ceph', 'ceph-osd', 'cinder-ceph',
+                 'ceph', 'cinder', 'ceph-radosgw']
+    depends = ['swift-proxy']
 
     @classmethod
     def required_num_units(self):

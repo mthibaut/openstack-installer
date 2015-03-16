@@ -20,6 +20,7 @@ from multiprocessing import cpu_count
 
 from cloudinstall.maas import (satisfies, MaasMachineStatus)
 from cloudinstall.utils import load_charms
+from cloudinstall.state import CharmState
 
 log = logging.getLogger('cloudinstall.placement')
 
@@ -254,18 +255,13 @@ class PlacementController:
             if not is_placed:
                 self.unplaced_services.add(cc)
 
-    def service_is_required(self, cc):
+    def get_charm_state(self, cc):
         """Returns True if service needs to be placed before deploying is
         OK.
         """
         self.reset_unplaced()
-        if cc.name() == 'nova-compute' \
-           and cc in self.unplaced_services:
-            return True
-
-        unrequired_services = ['heat',
-                               'nova-compute',
-                               'juju-gui']
+        if cc.charm_state == CharmState.REQUIRED:
+            return cc.charm_state
 
         storage_backend = self.config.getopt('storage_backend')
         if storage_backend not in ['swift', 'ceph', 'none']:
@@ -318,7 +314,8 @@ class PlacementController:
 
     def can_deploy(self):
         unplaced_requireds = [cc for cc in self.unplaced_services
-                              if self.service_is_required(cc)]
+                              if self.get_charm_state(cc) ==
+                              CharmState.REQUIRED]
 
         return len(unplaced_requireds) == 0
 
