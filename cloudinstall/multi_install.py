@@ -109,11 +109,11 @@ class MultiInstall:
                         'maas_server': maas_creds['api_host'],
                         'maas_apikey': maas_creds['api_key']}
 
-        if self.config.getopt('http_proxy'):
-            render_parts['http_proxy'] = self.config.getopt('http_proxy')
-
-        if self.config.getopt('https_proxy'):
-            render_parts['https_proxy'] = self.config.getopt('https_proxy')
+        for opt in ['http_proxy', 'https_proxy', 'no_proxy',
+                    'image_metadata_url', 'tools_metadata_url']:
+            val = self.config.getopt(opt)
+            if val:
+                render_parts[opt] = val
 
         if self.config.getopt('no_proxy'):
             render_parts['no_proxy'] = self.config.getopt('no_proxy')
