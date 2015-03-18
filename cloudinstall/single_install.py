@@ -71,7 +71,7 @@ class SingleInstall:
 
         render_parts['seed_command'] = self._proxy_pollinate()
 
-        for opt in ['http_proxy', 'https_proxy', 'no_proxy',
+        for opt in ['http_proxy', 'https_proxy', 'ftp_proxy', 'no_proxy',
                     'image_metadata_url', 'tools_metadata_url',
                     'apt_mirror']:
             val = self.config.getopt(opt)

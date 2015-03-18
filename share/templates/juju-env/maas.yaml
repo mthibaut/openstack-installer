@@ -8,29 +8,39 @@ environments:
     admin-secret: {{openstack_password}}
     default-series: trusty
     authorized-keys-path: ~/.ssh/id_rsa.pub
-{%- if http_proxy %}
-    apt-http-proxy: {{http_proxy}}
-{%- else %}
-    apt-http-proxy: 'http://{{maas_server}}:8000/'
-{%- endif %}
     lxc-clone: true
     bootstrap-timeout: 3600
-{%- if no_proxy -%}
-    no-proxy: {{no_proxy}}
-{%- else %}
-    no-proxy: localhost,{{maas_server}}
-{%- endif %}
-{%- if http_proxy %}
-    http-proxy: {{http_proxy}}
-{%- endif %}
-{%- if https_proxy %}
-    https-proxy: {{https_proxy}}
-{%- endif %}
 {%- if image_metadata_url -%}
     image-metadata-url: {{image_metadata_url}}
 {%- endif %}
 {%- if tools_metadata_url -%}
     tools-metadata-url: {{tools_metadata_url}}
+{%- endif %}
+{%- if http_proxy %}
+    apt-http-proxy: {{http_proxy}}
+    http-proxy: {{http_proxy}}
+{%- else %}
+    apt-http-proxy: 'http://{{maas_server}}:8000/'
+    http-proxy: 'http://{{maas_server}}:8000/'
+{%- endif %}
+{%- if https_proxy %}
+    apt-https-proxy: {{https_proxy}}
+    https-proxy: {{https_proxy}}
+{%- else %}
+    apt-https-proxy: 'http://{{maas_server}}:8000/'
+    https-proxy: 'http://{{maas_server}}:8000/'
+{%- endif %}
+{%- if ftp_proxy %}
+    apt-ftp-proxy: {{ftp_proxy}}
+    ftp-proxy: {{ftp_proxy}}
+{%- else %}
+    apt-ftp-proxy: 'http://{{maas_server}}:8000/'
+    ftp-proxy: 'http://{{maas_server}}:8000/'
+{%- endif %}
+{%- if no_proxy -%}
+    no-proxy: {{no_proxy}}
+{%- else %}
+    no-proxy: localhost,{{maas_server}}
 {%- endif %}
 
   openstack:
